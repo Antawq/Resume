@@ -1,5 +1,5 @@
-// script.js
-document.addEventListener('DOMContentLoaded', () => {
+// script.js - jQuery version
+$(document).ready(function() {
     const CONSTANTS = {
         PADDING: 20,
         UPDATE_INTERVAL: 1000,
@@ -9,11 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
         DRAG_THRESHOLD: 5
     };
 
-    const files = document.querySelectorAll('.file');
-    const windowElement = document.getElementById('window');
-    const windowContent = document.getElementById('window-content');
-    const closeButton = document.getElementById('close-window');
-    const datetimeElement = document.getElementById('datetime');
+    const $files = $('.file');
+    const $windowElement = $('#window');
+    const $windowContent = $('#window-content');
+    const $closeButton = $('#close-window');
+    const $datetimeElement = $('#datetime');
     const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     const DATE_FORMATTERS = {
@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let dateTimerId = null;
-    let eventListeners = [];
 
     const folderContents = {
         photos: [
@@ -69,8 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const githubDataCache = {};
-    
-    const isLocalStorageAvailable = (() => {
+
+    const isLocalStorageAvailable = (function() {
         try {
             const testKey = '__gh_cache_test__';
             localStorage.setItem(testKey, '1');
@@ -81,28 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return false;
         }
     })();
-
-    // Helper: Track event listeners for cleanup
-    function addTrackedListener(element, event, handler, options = {}) {
-        try {
-            element.addEventListener(event, handler, options);
-            eventListeners.push({ element, event, handler, options });
-        } catch (error) {
-            console.error(`Failed to add event listener: ${event}`, error);
-        }
-    }
-
-    // Helper: Remove all tracked listeners
-    function cleanupAllListeners() {
-        eventListeners.forEach(({ element, event, handler, options }) => {
-            try {
-                element.removeEventListener(event, handler, options);
-            } catch (error) {
-                console.error(`Failed to remove event listener: ${event}`, error);
-            }
-        });
-        eventListeners = [];
-    }
 
     // Initialize app
     function init() {
@@ -118,8 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateDateTime() {
         try {
             const now = new Date();
-            if (datetimeElement) {
-                datetimeElement.textContent = DATE_FORMATTERS.menu.format(now).replace(',', '');
+            if ($datetimeElement.length) {
+                $datetimeElement.text(DATE_FORMATTERS.menu.format(now).replace(',', ''));
             }
         } catch (error) {
             console.error('Error updating datetime:', error);
@@ -135,33 +112,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Check button functionality
     function setupCheckButton() {
-        const checkButton = document.getElementById('check-button');
-        const checkPanel = document.getElementById('check-panel');
+        const $checkButton = $('#check-button');
+        const $checkPanel = $('#check-panel');
 
-        if (!checkButton || !checkPanel) return;
+        if (!$checkButton.length || !$checkPanel.length) return;
 
-        const toggleCheckPanel = (forceState) => {
+        const toggleCheckPanel = function(forceState) {
             const shouldOpen = typeof forceState === 'boolean'
                 ? forceState
-                : !checkPanel.classList.contains('is-open');
-            
-            checkPanel.classList.toggle('is-open', shouldOpen);
-            checkPanel.setAttribute('aria-hidden', !shouldOpen);
-            checkButton.setAttribute('aria-expanded', shouldOpen);
+                : !$checkPanel.hasClass('is-open');
+
+            $checkPanel.toggleClass('is-open', shouldOpen);
+            $checkPanel.attr('aria-hidden', !shouldOpen);
+            $checkButton.attr('aria-expanded', shouldOpen);
         };
 
-        addTrackedListener(checkButton, 'click', (e) => {
+        $checkButton.on('click', function(e) {
             e.stopPropagation();
             toggleCheckPanel();
         });
 
-        addTrackedListener(document, 'click', (e) => {
-            if (!e.target.closest('.corner-area') && !e.target.closest('.check-panel')) {
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('.corner-area').length && !$(e.target).closest('.check-panel').length) {
                 toggleCheckPanel(false);
             }
         });
 
-        addTrackedListener(document, 'keydown', (e) => {
+        $(document).on('keydown', function(e) {
             if (e.key === 'Escape') {
                 toggleCheckPanel(false);
             }
@@ -170,7 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // File dragging and keyboard navigation
     function setupFileDragging() {
-        files.forEach(file => {
+        $files.each(function() {
+            const $file = $(this);
             let isDragging = false;
             let offsetX = 0;
             let offsetY = 0;
@@ -180,75 +158,77 @@ document.addEventListener('DOMContentLoaded', () => {
             let startX = 0;
             let startY = 0;
 
-            const attemptOpenWindow = () => {
-                const { type } = file.dataset;
+            const attemptOpenWindow = function() {
+                const type = $file.data('type');
                 if (isProcessing || !type) return;
                 isProcessing = true;
                 openWindow(type);
-                setTimeout(() => {
+                setTimeout(function() {
                     isProcessing = false;
                 }, CONSTANTS.ANIMATION_DEBOUNCE);
             };
 
-            const startDrag = (e) => {
-                if (isMobile && !e.target.closest('.file-icon')) return;
+            const startDrag = function(e) {
+                if (isMobile && !$(e.target).closest('.file-icon').length) return;
 
                 e.preventDefault();
-                startTarget = file;
+                startTarget = $file[0];
                 isDragging = false;
                 hasMoved = false;
 
-                const rect = file.getBoundingClientRect();
+                const rect = $file[0].getBoundingClientRect();
                 const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
                 const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-                
+
                 startX = clientX;
                 startY = clientY;
                 offsetX = clientX - rect.left;
                 offsetY = clientY - rect.top;
             };
 
-            const moveDrag = (e) => {
+            const moveDrag = function(e) {
                 if (!startTarget) return;
-                
+
                 e.preventDefault();
-                
+
                 const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
                 const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-                
+
                 const deltaX = Math.abs(clientX - startX);
                 const deltaY = Math.abs(clientY - startY);
-                
+
                 if (!isDragging && (deltaX > CONSTANTS.DRAG_THRESHOLD || deltaY > CONSTANTS.DRAG_THRESHOLD)) {
                     isDragging = true;
-                    file.classList.add('dragging');
+                    $file.addClass('dragging');
                 }
-                
+
                 if (!isDragging) return;
-                
+
                 hasMoved = true;
 
                 let newX = clientX - offsetX;
                 let newY = clientY - offsetY;
 
-                const maxX = window.innerWidth - file.offsetWidth - CONSTANTS.PADDING;
-                const maxY = window.innerHeight - file.offsetHeight - CONSTANTS.PADDING - (isMobile ? 100 : 80);
+                const maxX = $(window).width() - $file.outerWidth() - CONSTANTS.PADDING;
+                const maxY = $(window).height() - $file.outerHeight() - CONSTANTS.PADDING - (isMobile ? 100 : 80);
                 const minY = CONSTANTS.PADDING + (isMobile ? 40 : 50);
 
                 newX = Math.max(CONSTANTS.PADDING, Math.min(newX, maxX));
                 newY = Math.max(minY, Math.min(newY, maxY));
 
-                file.style.left = `${newX}px`;
-                file.style.top = `${newY}px`;
+                $file.css({
+                    left: newX + 'px',
+                    top: newY + 'px'
+                });
             };
 
-            const endDrag = (e) => {
+            const endDrag = function(e) {
                 if (isDragging) {
                     isDragging = false;
-                    file.classList.remove('dragging');
+                    $file.removeClass('dragging');
                 }
 
-                if (!hasMoved && startTarget && startTarget === file) {
+                if (!hasMoved && startTarget && startTarget === $file[0]) {
                     attemptOpenWindow();
                 }
 
@@ -256,26 +236,31 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             if (isMobile) {
-                addTrackedListener(file, 'touchstart', startDrag, { passive: false });
-                addTrackedListener(file, 'touchmove', moveDrag, { passive: false });
-                addTrackedListener(file, 'touchend', endDrag, { passive: true });
-                addTrackedListener(file, 'touchcancel', endDrag, { passive: true });
+                $file.on('touchstart', startDrag);
+                $file.on('touchmove', moveDrag);
+                $file.on('touchend', endDrag);
+                $file.on('touchcancel', endDrag);
             } else {
-                addTrackedListener(file, 'mousedown', (e) => {
+                $file.on('mousedown', function(e) {
                     startDrag(e);
-                    const moveHandler = (ev) => moveDrag(ev);
-                    const upHandler = (ev) => {
-                        endDrag(ev);
-                        document.removeEventListener('mousemove', moveHandler);
-                        document.removeEventListener('mouseup', upHandler);
+
+                    const moveHandler = function(ev) {
+                        moveDrag(ev);
                     };
-                    document.addEventListener('mousemove', moveHandler);
-                    document.addEventListener('mouseup', upHandler);
+
+                    const upHandler = function(ev) {
+                        endDrag(ev);
+                        $(document).off('mousemove', moveHandler);
+                        $(document).off('mouseup', upHandler);
+                    };
+
+                    $(document).on('mousemove', moveHandler);
+                    $(document).on('mouseup', upHandler);
                 });
             }
 
             // Keyboard navigation
-            addTrackedListener(file, 'keydown', (e) => {
+            $file.on('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     attemptOpenWindow();
@@ -286,21 +271,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Dock items
     function setupDockItems() {
-        const dockItems = document.querySelectorAll('.dock-item');
-        dockItems.forEach(item => {
+        const $dockItems = $('.dock-item');
+        $dockItems.each(function() {
+            const $item = $(this);
             const eventType = isMobile ? 'touchend' : 'click';
-            const handler = (e) => {
-                e.stopPropagation();
-                openWindow(item.dataset.type);
-            };
 
-            addTrackedListener(item, eventType, handler, { passive: eventType === 'touchend' });
+            $item.on(eventType, function(e) {
+                e.stopPropagation();
+                openWindow($item.data('type'));
+            });
 
             // Keyboard navigation
-            addTrackedListener(item, 'keydown', (e) => {
+            $item.on('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    openWindow(item.dataset.type);
+                    openWindow($item.data('type'));
                 }
             });
         });
@@ -313,29 +298,31 @@ document.addEventListener('DOMContentLoaded', () => {
         let startY = 0;
         let initialX = 0;
         let initialY = 0;
-        const windowHeader = windowElement.querySelector('.window-header');
+        const $windowHeader = $windowElement.find('.window-header');
 
-        const startDragWindow = (e) => {
-            if (!windowElement.classList.contains('is-visible')) return;
-            if (e.target.closest('.window-control')) return;
-            
+        const startDragWindow = function(e) {
+            if (!$windowElement.hasClass('is-visible')) return;
+            if ($(e.target).closest('.window-control').length) return;
+
             e.preventDefault();
 
             const touchEvent = e.type.includes('touch');
             startX = touchEvent ? e.touches[0].clientX : e.clientX;
             startY = touchEvent ? e.touches[0].clientY : e.clientY;
 
-            const rect = windowElement.getBoundingClientRect();
-            windowElement.classList.add('is-dragging');
-            windowElement.style.left = `${rect.left}px`;
-            windowElement.style.top = `${rect.top}px`;
+            const rect = $windowElement[0].getBoundingClientRect();
+            $windowElement.addClass('is-dragging');
+            $windowElement.css({
+                left: rect.left + 'px',
+                top: rect.top + 'px'
+            });
 
             initialX = rect.left;
             initialY = rect.top;
             isDraggingWindow = true;
         };
 
-        const moveDragWindow = (e) => {
+        const moveDragWindow = function(e) {
             if (!isDraggingWindow) return;
             e.preventDefault();
 
@@ -345,144 +332,154 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaX = clientX - startX;
             const deltaY = clientY - startY;
 
-            const maxX = window.innerWidth - windowElement.offsetWidth;
-            const maxY = window.innerHeight - windowElement.offsetHeight;
+            const maxX = $(window).width() - $windowElement.outerWidth();
+            const maxY = $(window).height() - $windowElement.outerHeight();
 
             const newX = Math.max(0, Math.min(initialX + deltaX, Math.max(0, maxX)));
             const newY = Math.max(0, Math.min(initialY + deltaY, Math.max(0, maxY)));
 
-            windowElement.style.left = `${newX}px`;
-            windowElement.style.top = `${newY}px`;
+            $windowElement.css({
+                left: newX + 'px',
+                top: newY + 'px'
+            });
         };
 
-        const endDragWindow = () => {
+        const endDragWindow = function() {
             isDraggingWindow = false;
         };
 
-        addTrackedListener(windowHeader, 'mousedown', startDragWindow);
-        addTrackedListener(windowHeader, 'touchstart', startDragWindow, { passive: false });
-        addTrackedListener(document, 'mousemove', moveDragWindow);
-        addTrackedListener(document, 'touchmove', moveDragWindow, { passive: false });
-        addTrackedListener(document, 'mouseup', endDragWindow);
-        addTrackedListener(document, 'touchend', endDragWindow);
+        $windowHeader.on('mousedown', startDragWindow);
+        $windowHeader.on('touchstart', startDragWindow);
+        $(document).on('mousemove', moveDragWindow);
+        $(document).on('touchmove', moveDragWindow);
+        $(document).on('mouseup', endDragWindow);
+        $(document).on('touchend', endDragWindow);
     }
 
     // Window closing
     function setupWindowClosing() {
         let closingAnimationHandler = null;
 
-        const resetWindowPosition = () => {
-            windowElement.classList.remove('is-dragging');
-            windowElement.style.left = '';
-            windowElement.style.top = '';
+        const resetWindowPosition = function() {
+            $windowElement.removeClass('is-dragging');
+            $windowElement.css({
+                left: '',
+                top: ''
+            });
         };
 
-        const closeWindow = () => {
-            if (!windowElement.classList.contains('is-visible') || windowElement.classList.contains('is-closing')) {
+        const closeWindow = function() {
+            if (!$windowElement.hasClass('is-visible') || $windowElement.hasClass('is-closing')) {
                 return;
             }
 
             if (closingAnimationHandler) {
-                windowElement.removeEventListener('animationend', closingAnimationHandler);
+                $windowElement.off('animationend', closingAnimationHandler);
                 closingAnimationHandler = null;
             }
 
-            windowElement.classList.add('is-closing');
+            $windowElement.addClass('is-closing');
 
-            closingAnimationHandler = (event) => {
-                if (event.animationName !== 'window-minimize') return;
+            closingAnimationHandler = function(event) {
+                if (event.originalEvent.animationName !== 'window-minimize') return;
 
-                windowElement.classList.remove('is-visible', 'is-closing');
-                windowContent.innerHTML = '';
+                $windowElement.removeClass('is-visible is-closing');
+                $windowContent.html('');
                 resetWindowPosition();
 
-                windowElement.removeEventListener('animationend', closingAnimationHandler);
+                $windowElement.off('animationend', closingAnimationHandler);
                 closingAnimationHandler = null;
             };
 
-            windowElement.addEventListener('animationend', closingAnimationHandler);
+            $windowElement.on('animationend', closingAnimationHandler);
         };
 
-        addTrackedListener(closeButton, isMobile ? 'touchend' : 'click', (e) => {
+        $closeButton.on(isMobile ? 'touchend' : 'click', function(e) {
             e.stopPropagation();
             e.preventDefault();
             closeWindow();
-        }, { passive: false });
+        });
 
-        addTrackedListener(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && windowElement.classList.contains('is-visible')) {
+        $(document).on('keydown', function(e) {
+            if (e.key === 'Escape' && $windowElement.hasClass('is-visible')) {
                 closeWindow();
             }
         });
     }
 
     // Open window
-    const createFolderRenderer = (type) => (index) => renderFolderContent(type, index);
+    const createFolderRenderer = function(type) {
+        return function(index) {
+            return renderFolderContent(type, index);
+        };
+    };
 
     const WINDOW_RENDER_STRATEGIES = {
         photos: createFolderRenderer('photos'),
         projects: createFolderRenderer('projects'),
         trash: createFolderRenderer('trash'),
-        text: () => renderTextFile(),
-        calls: () => renderCalls(),
-        notes: () => renderNotes(),
-        github: () => loadGitHubProfile(),
-        telegram: () => renderTelegram(),
-        instagram: () => renderPlaceholder('Instagram')
+        text: function() { return renderTextFile(); },
+        calls: function() { return renderCalls(); },
+        notes: function() { return renderNotes(); },
+        github: function() { return loadGitHubProfile(); },
+        telegram: function() { return renderTelegram(); },
+        instagram: function() { return renderPlaceholder('Instagram'); }
     };
 
-    function openWindow(type, fileIndex = null) {
+    function openWindow(type, fileIndex) {
         if (!type) return;
 
         try {
-            const wasHidden = !windowElement.classList.contains('is-visible');
+            const wasHidden = !$windowElement.hasClass('is-visible');
 
             if (wasHidden) {
-                windowElement.classList.remove('is-dragging');
-                windowElement.style.left = '';
-                windowElement.style.top = '';
+                $windowElement.removeClass('is-dragging');
+                $windowElement.css({
+                    left: '',
+                    top: ''
+                });
             }
 
-            windowElement.classList.remove('is-closing');
-            windowElement.classList.add('is-visible');
-            windowContent.innerHTML = '';
+            $windowElement.removeClass('is-closing');
+            $windowElement.addClass('is-visible');
+            $windowContent.html('');
 
             const render = WINDOW_RENDER_STRATEGIES[type];
 
             if (render) {
                 render(fileIndex);
             } else {
-                console.warn(`No renderer configured for window type: ${type}`);
+                console.warn('No renderer configured for window type: ' + type);
                 renderPlaceholder(type);
             }
         } catch (error) {
-            console.error(`Error opening window: ${type}`, error);
-            windowContent.innerHTML = '<div class="error-content"><p>Не удалось открыть содержимое.</p></div>';
+            console.error('Error opening window: ' + type, error);
+            $windowContent.html('<div class="error-content"><p>Не удалось открыть содержимое.</p></div>');
         }
     }
 
     // Rendering functions
     function renderPlaceholder(name) {
-        windowContent.innerHTML = `
+        $windowContent.html(`
             <div class="text-content">
                 <h2>${name}</h2>
                 <p>Содержимое в разработке.</p>
             </div>
-        `;
+        `);
     }
 
     function renderFolder(type) {
         const items = folderContents[type] || [];
         if (!items.length) {
-            windowContent.innerHTML = `
+            $windowContent.html(`
                 <div class="folder-content">
                     <p>Папка пока пуста.</p>
                 </div>
-            `;
+            `);
             return;
         }
 
-        windowContent.innerHTML = `
+        $windowContent.html(`
             <div class="folder-content">
                 ${items.map((item, index) => `
                     <div class="folder-item" data-index="${index}" data-type="${type}" tabindex="0" role="button" aria-label="Open ${item.name}">
@@ -491,18 +488,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `).join('')}
             </div>
-        `;
+        `);
 
-        const folderItems = windowContent.querySelectorAll('.folder-item');
+        const $folderItems = $windowContent.find('.folder-item');
         const selectEvent = isMobile ? 'touchend' : 'click';
 
-        folderItems.forEach((item) => {
-            const handleSelection = (e) => {
+        $folderItems.each(function() {
+            const $item = $(this);
+
+            const handleSelection = function(e) {
                 e.stopPropagation();
                 e.preventDefault();
 
-                const index = Number.parseInt(item.dataset.index, 10);
-                if (Number.isNaN(index)) return;
+                const index = parseInt($item.data('index'), 10);
+                if (isNaN(index)) return;
 
                 if (type === 'projects') {
                     const project = folderContents[type][index];
@@ -514,9 +513,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
 
-            item.addEventListener(selectEvent, handleSelection, { passive: false });
-            
-            item.addEventListener('keydown', (e) => {
+            $item.on(selectEvent, handleSelection);
+
+            $item.on('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     handleSelection(e);
@@ -529,11 +528,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const items = folderContents[type] || [];
 
         if (!items.length) {
-            windowContent.innerHTML = `
+            $windowContent.html(`
                 <div class="folder-content">
                     <p>Папка пока пуста.</p>
                 </div>
-            `;
+            `);
             return;
         }
 
@@ -545,30 +544,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTextFile() {
-        windowContent.innerHTML = `
+        $windowContent.html(`
             <div class="text-content">
                 <h2>About</h2>
                 <p>This is a desktop interface template.</p>
                 <p>Built with vanilla JavaScript, HTML, and CSS.</p>
             </div>
-        `;
+        `);
     }
 
     function renderCalls() {
-        windowContent.innerHTML = `<div class="call-log"><p>No recent calls</p></div>`;
+        $windowContent.html('<div class="call-log"><p>No recent calls</p></div>');
     }
 
     function renderNotes() {
-        windowContent.innerHTML = `<textarea class="notes-area" placeholder="Your notes..." aria-label="Notes textarea"></textarea>`;
+        $windowContent.html('<textarea class="notes-area" placeholder="Your notes..." aria-label="Notes textarea"></textarea>');
     }
 
-    function renderGallery(type, startIndex = 0) {
+    function renderGallery(type, startIndex) {
+        startIndex = startIndex || 0;
         const items = folderContents[type] || [];
         if (!items.length) return;
 
         currentIndex[type] = startIndex;
 
-        windowContent.innerHTML = `
+        $windowContent.html(`
             <div class="gallery" role="region" aria-label="Image gallery">
                 <button class="arrow left" aria-label="Previous image">&#10094;</button>
                 <div class="gallery-container">
@@ -580,24 +580,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <button class="arrow right" aria-label="Next image">&#10095;</button>
             </div>
-        `;
+        `);
 
-        const container = windowContent.querySelector('.gallery-container');
-        const leftArrow = windowContent.querySelector('.arrow.left');
-        const rightArrow = windowContent.querySelector('.arrow.right');
+        const $container = $windowContent.find('.gallery-container');
+        const $leftArrow = $windowContent.find('.arrow.left');
+        const $rightArrow = $windowContent.find('.arrow.right');
 
-        const updateGallery = () => {
-            container.style.transform = `translateX(-${currentIndex[type] * 100}%)`;
-            leftArrow.setAttribute('aria-disabled', currentIndex[type] === 0);
-            rightArrow.setAttribute('aria-disabled', currentIndex[type] === items.length - 1);
+        const updateGallery = function() {
+            $container.css('transform', `translateX(-${currentIndex[type] * 100}%)`);
+            $leftArrow.attr('aria-disabled', currentIndex[type] === 0);
+            $rightArrow.attr('aria-disabled', currentIndex[type] === items.length - 1);
         };
 
-        leftArrow.addEventListener('click', () => {
+        $leftArrow.on('click', function() {
             currentIndex[type] = (currentIndex[type] - 1 + items.length) % items.length;
             updateGallery();
         });
 
-        rightArrow.addEventListener('click', () => {
+        $rightArrow.on('click', function() {
             currentIndex[type] = (currentIndex[type] + 1) % items.length;
             updateGallery();
         });
@@ -605,9 +605,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateGallery();
 
         if (type === 'projects') {
-            windowContent.querySelectorAll('.gallery-item--link img').forEach((img, index) => {
-                img.addEventListener('click', () => {
-                    if (items[index]?.url) {
+            $windowContent.find('.gallery-item--link img').each(function(index) {
+                $(this).on('click', function() {
+                    if (items[index] && items[index].url) {
                         window.open(items[index].url, '_blank', 'noopener,noreferrer');
                     }
                 });
@@ -616,7 +616,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // GitHub functions
-    const buildGitHubCacheKey = (username) => `${CONSTANTS.GITHUB_CACHE_PREFIX}${username}`;
+    const buildGitHubCacheKey = function(username) {
+        return CONSTANTS.GITHUB_CACHE_PREFIX + username;
+    };
 
     function readGitHubCache(username) {
         if (!isLocalStorageAvailable) return null;
@@ -625,7 +627,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed || typeof parsed !== 'object') return null;
-            const { timestamp, data } = parsed;
+            const timestamp = parsed.timestamp;
+            const data = parsed.data;
             if (!timestamp || !data) return null;
             if (Date.now() - timestamp > CONSTANTS.GITHUB_CACHE_TTL) {
                 localStorage.removeItem(buildGitHubCacheKey(username));
@@ -643,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             localStorage.setItem(buildGitHubCacheKey(username), JSON.stringify({
                 timestamp: Date.now(),
-                data
+                data: data
             }));
         } catch (error) {
             console.warn('Не удалось записать кэш GitHub.', error);
@@ -651,18 +654,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadGitHubProfile() {
-        windowContent.innerHTML = `
+        $windowContent.html(`
             <div class="github-profile">
                 <div class="gh-profiles">
                     ${GITHUB_PROFILES.map(renderGitHubProfileSection).join("")}
                 </div>
             </div>
-        `;
+        `);
 
-        GITHUB_PROFILES.forEach(profile => hydrateGitHubProfile(profile));
+        GITHUB_PROFILES.forEach(function(profile) {
+            hydrateGitHubProfile(profile);
+        });
     }
 
-    function renderGitHubProfileSection({ prefix, username }) {
+    function renderGitHubProfileSection(profile) {
+        const prefix = profile.prefix;
+        const username = profile.username;
+
         return `
             <section class="gh-profile" data-user="${username}">
                 <div class="gh-body">
@@ -684,78 +692,87 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function hydrateGitHubProfile({ username, prefix }) {
-        const avatar = document.getElementById(`${prefix}-avatar`);
-        const name = document.getElementById(`${prefix}-name`);
-        const followers = document.getElementById(`${prefix}-followers`);
-        const reposList = document.getElementById(`${prefix}-repos`);
-        const readmeContainer = document.getElementById(`${prefix}-readme`);
+    function hydrateGitHubProfile(profile) {
+        const username = profile.username;
+        const prefix = profile.prefix;
+
+        const $avatar = $('#' + prefix + '-avatar');
+        const $name = $('#' + prefix + '-name');
+        const $followers = $('#' + prefix + '-followers');
+        const $reposList = $('#' + prefix + '-repos');
+        const $readmeContainer = $('#' + prefix + '-readme');
 
         fetchGitHubData(username)
-            .then(({ user, repos, readme }) => {
-                if (avatar && user) {
-                    avatar.src = user.avatar_url;
-                    avatar.alt = `Avatar ${user.login}`;
+            .then(function(result) {
+                const user = result.user;
+                const repos = result.repos;
+                const readme = result.readme;
+
+                if ($avatar.length && user) {
+                    $avatar.attr('src', user.avatar_url);
+                    $avatar.attr('alt', 'Avatar ' + user.login);
                 }
 
-                if (name) {
-                    name.textContent = user ? (user.name || user.login) : "Failed to load";
+                if ($name.length) {
+                    $name.text(user ? (user.name || user.login) : "Failed to load");
                 }
 
-                if (followers && user) {
-                    followers.textContent = `${user.followers} followers · ${user.following} following`;
+                if ($followers.length && user) {
+                    $followers.text(user.followers + ' followers · ' + user.following + ' following');
                 }
 
-                if (reposList) {
+                if ($reposList.length) {
                     if (repos && repos.length) {
-                        reposList.innerHTML = repos.map(repo => `
-                            <li>
-                                <a href="${repo.html_url}" target="_blank" rel="noopener noreferrer">${repo.name}</a> ⭐ ${repo.stargazers_count}
-                            </li>
-                        `).join("");
+                        $reposList.html(repos.map(function(repo) {
+                            return `
+                                <li>
+                                    <a href="${repo.html_url}" target="_blank" rel="noopener noreferrer">${repo.name}</a> ⭐ ${repo.stargazers_count}
+                                </li>
+                            `;
+                        }).join(""));
                     } else {
-                        reposList.textContent = "No public repositories.";
+                        $reposList.text("No public repositories.");
                     }
                 }
 
-                if (readmeContainer) {
+                if ($readmeContainer.length) {
                     if (readme && typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined') {
                         const parsed = marked.parse(readme);
                         const sanitized = DOMPurify.sanitize(parsed);
-                        readmeContainer.innerHTML = sanitized;
+                        $readmeContainer.html(sanitized);
                     } else if (readme) {
-                        readmeContainer.textContent = readme;
+                        $readmeContainer.text(readme);
                     } else {
-                        readmeContainer.textContent = "No README found.";
+                        $readmeContainer.text("No README found.");
                     }
                 }
             })
-            .catch((error) => {
-                const isRateLimit = Boolean(error?.isRateLimit);
+            .catch(function(error) {
+                const isRateLimit = Boolean(error && error.isRateLimit);
 
-                if (name) {
-                    name.textContent = isRateLimit ? 'Лимит GitHub API' : 'Failed to load';
+                if ($name.length) {
+                    $name.text(isRateLimit ? 'Лимит GitHub API' : 'Failed to load');
                 }
 
-                if (followers) {
-                    followers.textContent = '';
+                if ($followers.length) {
+                    $followers.text('');
                 }
 
-                if (reposList) {
+                if ($reposList.length) {
                     if (isRateLimit) {
-                        reposList.innerHTML = `
+                        $reposList.html(`
                             <li>
                                 <span>${GITHUB_RATE_LIMIT_MESSAGE}</span><br>
                                 <a href="https://github.com/${username}" target="_blank" rel="noopener noreferrer">Открыть профиль ${username}</a>
                             </li>
-                        `;
+                        `);
                     } else {
-                        reposList.textContent = 'Failed to load repos.';
+                        $reposList.text('Failed to load repos.');
                     }
                 }
 
-                if (readmeContainer) {
-                    readmeContainer.textContent = isRateLimit ? GITHUB_RATE_LIMIT_MESSAGE : 'No README found.';
+                if ($readmeContainer.length) {
+                    $readmeContainer.text(isRateLimit ? GITHUB_RATE_LIMIT_MESSAGE : 'No README found.');
                 }
 
                 console.error('GitHub profile error:', error);
@@ -769,20 +786,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cached) {
                 githubDataCache[username] = { data: Promise.resolve(cached), pending: false };
 
-                setTimeout(() => {
+                setTimeout(function() {
                     refreshGitHubData(username)
-                        .then((freshData) => {
+                        .then(function(freshData) {
                             githubDataCache[username] = { data: Promise.resolve(freshData), pending: false };
                         })
-                        .catch((error) => {
-                            if (!error?.isRateLimit) {
-                                console.warn(`Не удалось обновить данные GitHub для ${username}`, error);
+                        .catch(function(error) {
+                            if (!(error && error.isRateLimit)) {
+                                console.warn('Не удалось обновить данные GitHub для ' + username, error);
                             }
                         });
                 }, 100);
             } else {
                 githubDataCache[username] = { data: refreshGitHubData(username), pending: true };
-                githubDataCache[username].data.finally(() => {
+                githubDataCache[username].data.finally(function() {
                     githubDataCache[username].pending = false;
                 });
             }
@@ -794,21 +811,25 @@ document.addEventListener('DOMContentLoaded', () => {
     function refreshGitHubData(username) {
         return Promise.all([
             fetchGitHubUser(username),
-            fetchGitHubRepos(username).catch((error) => {
-                if (error?.isRateLimit) throw error;
+            fetchGitHubRepos(username).catch(function(error) {
+                if (error && error.isRateLimit) throw error;
                 return [];
             }),
-            fetchUserReadme(username).catch((error) => {
-                if (error?.isRateLimit) throw error;
+            fetchUserReadme(username).catch(function(error) {
+                if (error && error.isRateLimit) throw error;
                 return null;
             })
         ])
-            .then(([user, repos, readme]) => {
-                const payload = { user, repos, readme };
+            .then(function(results) {
+                const payload = {
+                    user: results[0],
+                    repos: results[1],
+                    readme: results[2]
+                };
                 writeGitHubCache(username, payload);
                 return payload;
             })
-            .catch((error) => {
+            .catch(function(error) {
                 if (githubDataCache[username]) {
                     delete githubDataCache[username];
                 }
@@ -816,7 +837,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    async function fetchGitHubResource(url, { responseType = 'json' } = {}) {
+    async function fetchGitHubResource(url, options) {
+        options = options || {};
+        const responseType = options.responseType || 'json';
+
         try {
             const response = await fetch(url, { headers: GITHUB_REQUEST_HEADERS });
 
@@ -824,7 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let message = 'GitHub API rate limit exceeded';
                 try {
                     const body = await response.json();
-                    if (body?.message) {
+                    if (body && body.message) {
                         message = body.message;
                     }
                 } catch (error) {
@@ -838,7 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!response.ok) {
-                const text = await response.text().catch(() => '');
+                const text = await response.text().catch(function() { return ''; });
                 const error = new Error(text || response.statusText);
                 error.status = response.status;
                 throw error;
@@ -855,18 +879,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return response;
         } catch (error) {
             if (error.isRateLimit) throw error;
-            console.error(`GitHub fetch error for ${url}:`, error);
+            console.error('GitHub fetch error for ' + url + ':', error);
             throw error;
         }
     }
 
     function fetchGitHubUser(username) {
-        return fetchGitHubResource(`https://api.github.com/users/${username}`);
+        return fetchGitHubResource('https://api.github.com/users/' + username);
     }
 
     function fetchGitHubRepos(username) {
-        return fetchGitHubResource(`https://api.github.com/users/${username}/repos?sort=updated&per_page=5`)
-            .then(repos => {
+        return fetchGitHubResource('https://api.github.com/users/' + username + '/repos?sort=updated&per_page=5')
+            .then(function(repos) {
                 if (!Array.isArray(repos)) throw new Error("Invalid repos response");
                 return repos;
             });
@@ -874,12 +898,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function fetchUserReadme(username) {
         const readmePaths = [
-            `https://raw.githubusercontent.com/${username}/${username}/main/README.md`,
-            `https://raw.githubusercontent.com/${username}/${username}/master/README.md`,
-            `https://raw.githubusercontent.com/${username}/profile/main/README.md`
+            'https://raw.githubusercontent.com/' + username + '/' + username + '/main/README.md',
+            'https://raw.githubusercontent.com/' + username + '/' + username + '/master/README.md',
+            'https://raw.githubusercontent.com/' + username + '/profile/main/README.md'
         ];
 
-        const tryFetch = async (index = 0) => {
+        const tryFetch = async function(index) {
+            index = index || 0;
+
             if (index >= readmePaths.length) {
                 throw new Error("README not found");
             }
@@ -899,7 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 return await response.text();
             } catch (error) {
-                if (error?.isRateLimit) throw error;
+                if (error && error.isRateLimit) throw error;
                 return tryFetch(index + 1);
             }
         };
@@ -909,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Telegram
     function renderTelegram() {
-        windowContent.innerHTML = `
+        $windowContent.html(`
             <div class="telegram-window">
                 <div class="telegram-header">Telegram</div>
                 <div class="telegram-body">
@@ -921,12 +947,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button id="telegram-send" aria-label="Send message">&#9658;</button>
                 </div>
             </div>
-        `;
+        `);
 
-        const chatList = document.getElementById('telegram-chat-list');
-        const messagesContainer = document.getElementById('telegram-messages');
-        const input = document.getElementById('telegram-input');
-        const sendBtn = document.getElementById('telegram-send');
+        const $chatList = $('#telegram-chat-list');
+        const $messagesContainer = $('#telegram-messages');
+        const $input = $('#telegram-input');
+        const $sendBtn = $('#telegram-send');
 
         if (!telegramState.chats.length) {
             telegramState.chats.push({
@@ -941,68 +967,74 @@ document.addEventListener('DOMContentLoaded', () => {
             telegramState.activeChatId = telegramState.chats[0].id;
         }
 
-        const findChat = (id) => telegramState.chats.find((chat) => chat.id === id);
+        const findChat = function(id) {
+            return telegramState.chats.find(function(chat) {
+                return chat.id === id;
+            });
+        };
 
-        const renderChatList = () => {
-            chatList.innerHTML = telegramState.chats.map(chat => `
-                <div class="telegram-chat-item${chat.id === telegramState.activeChatId ? ' is-active' : ''}" 
-                     data-id="${chat.id}" 
-                     role="listitem" 
-                     tabindex="0"
-                     aria-label="Chat with ${chat.name}">
-                    <img src="${chat.avatar}" alt="">
-                    <span>${chat.name}</span>
-                </div>
-            `).join('');
+        const renderChatList = function() {
+            $chatList.html(telegramState.chats.map(function(chat) {
+                return `
+                    <div class="telegram-chat-item${chat.id === telegramState.activeChatId ? ' is-active' : ''}"
+                         data-id="${chat.id}"
+                         role="listitem"
+                         tabindex="0"
+                         aria-label="Chat with ${chat.name}">
+                        <img src="${chat.avatar}" alt="">
+                        <span>${chat.name}</span>
+                    </div>
+                `;
+            }).join(''));
 
-            chatList.querySelectorAll('.telegram-chat-item').forEach(item => {
-                item.addEventListener('keydown', (e) => {
+            $chatList.find('.telegram-chat-item').each(function() {
+                $(this).on('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        item.click();
+                        $(this).trigger('click');
                     }
                 });
             });
         };
 
-        const renderMessages = () => {
+        const renderMessages = function() {
             const chat = findChat(telegramState.activeChatId);
             if (!chat) return;
 
-            messagesContainer.innerHTML = chat.messages.map(msg => `
-                <div class="telegram-message ${msg.type}" role="article">${msg.text}</div>
-            `).join('');
+            $messagesContainer.html(chat.messages.map(function(msg) {
+                return `<div class="telegram-message ${msg.type}" role="article">${msg.text}</div>`;
+            }).join(''));
 
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            $messagesContainer.scrollTop($messagesContainer[0].scrollHeight);
         };
 
-        chatList.addEventListener('click', (e) => {
-            const item = e.target.closest('.telegram-chat-item');
-            if (!item) return;
+        $chatList.on('click', function(e) {
+            const $item = $(e.target).closest('.telegram-chat-item');
+            if (!$item.length) return;
 
-            const nextId = Number.parseInt(item.dataset.id, 10);
-            if (Number.isNaN(nextId)) return;
+            const nextId = parseInt($item.data('id'), 10);
+            if (isNaN(nextId)) return;
 
             telegramState.activeChatId = nextId;
             renderChatList();
             renderMessages();
         });
 
-        const sendMessage = () => {
-            const text = input.value.trim();
+        const sendMessage = function() {
+            const text = $input.val().trim();
             if (!text) return;
 
             const chat = findChat(telegramState.activeChatId);
             if (!chat) return;
 
-            chat.messages.push({ type: 'sent', text });
-            input.value = '';
+            chat.messages.push({ type: 'sent', text: text });
+            $input.val('');
             renderMessages();
         };
 
-        sendBtn.addEventListener('click', sendMessage);
+        $sendBtn.on('click', sendMessage);
 
-        input.addEventListener('keydown', (e) => {
+        $input.on('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 sendMessage();
@@ -1014,12 +1046,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
+    $(window).on('beforeunload', function() {
         if (dateTimerId !== null) {
             clearInterval(dateTimerId);
             dateTimerId = null;
         }
-        cleanupAllListeners();
     });
 
     // Start the app

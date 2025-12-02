@@ -1,0 +1,17 @@
+# Backup files
+*.backup.*
+*.bak
+*~
+
+# Test files
+test.html
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
