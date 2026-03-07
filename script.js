@@ -35,10 +35,7 @@ $(document).ready(function() {
             { src: 'photos/photo2.png', name: 'Photo 2' },
             { src: 'photos/photo3.png', name: 'Photo 3' }
         ],
-        projects: [
-            { src: 'projects/project1.png', name: 'Project 1', url: 'https://example.com/project1' },
-            { src: 'projects/project2.png', name: 'Project 2', url: 'https://example.com/project2' }
-        ],
+        projects: [],
         trash: [
             { src: 'trash/item1.png', name: 'Deleted 1' },
             { src: 'trash/item2.png', name: 'Deleted 2' }
@@ -414,9 +411,41 @@ $(document).ready(function() {
         };
     };
 
+    let projectsLoaded = false;
+
+    function loadProjects() {
+        if (projectsLoaded) return Promise.resolve(folderContents.projects);
+
+        return fetch('projects/projects.json')
+            .then(function(r) {
+                if (!r.ok) throw new Error(r.status);
+                return r.json();
+            })
+            .then(function(data) {
+                folderContents.projects = data.map(function(item) {
+                    return {
+                        src: 'projects/' + item.image,
+                        name: item.name,
+                        url: item.url || null
+                    };
+                });
+                projectsLoaded = true;
+                return folderContents.projects;
+            });
+    }
+
     const WINDOW_RENDER_STRATEGIES = {
         photos: createFolderRenderer('photos'),
-        projects: createFolderRenderer('projects'),
+        projects: function(index) {
+            $windowContent.html('<div class="text-content"><p>Loading...</p></div>');
+            loadProjects()
+                .then(function() {
+                    renderFolderContent('projects', index);
+                })
+                .catch(function() {
+                    $windowContent.html('<div class="folder-content"><p>Не удалось загрузить проекты.</p></div>');
+                });
+        },
         trash: createFolderRenderer('trash'),
         text: function() { return renderTextFile(); },
         calls: function() { return renderCalls(); },
