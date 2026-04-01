@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="darkreader-lock">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Desktop Interface</title>
     <link rel="stylesheet" href="styles.css">
@@ -12,19 +13,10 @@
 </head>
 
 <body>
+    <div id="brightness-overlay" aria-hidden="true"></div>
     <!-- Панель сверху -->
     <div class="menu-bar" role="banner">
-        <div class="corner-area" id="corner-area">
-            <button id="check-button" type="button" aria-label="Open check panel" aria-expanded="false" aria-controls="check-panel">
-                <span>check</span>
-            </button>
-        </div>
         <div class="datetime" id="datetime" role="timer" aria-live="off"></div>
-    </div>
-    <div class="check-panel" id="check-panel" role="menu" aria-hidden="true">
-        <div class="check-panel__placeholder">
-            check
-        </div>
     </div>
 
     <!-- Рабочий стол -->

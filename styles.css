@@ -10,7 +10,6 @@
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --font: 'Source Code Pro', monospace;
     --clock-font: 'Alumni Sans Pinstripe', cursive;
-    --sky-gradient: linear-gradient(180deg, #87CEEB 0%, #6BB6FF 30%, #FFB6C1 70%, #FF9FB3 100%);
     --menu-height: 28px;
     --dock-icon-size: 50px;
     --file-icon-size: 100px;
@@ -27,12 +26,22 @@
 }
 
 body {
-    background: var(--sky-gradient);
+    background: #0f0f12;
     height: 100vh;
     width: 100vw;
     overflow: hidden;
     position: fixed;
     touch-action: manipulation;
+}
+
+#brightness-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 0.15s ease;
 }
 
 .hidden {
@@ -108,11 +117,17 @@ button:focus-visible,
     position: fixed;
     top: 0;
     left: 0;
-    background: var(--sky-gradient);
+    background: url(photos/wppr.png) center center / cover no-repeat;
     z-index: 10;
     overflow: hidden;
     touch-action: none;
     isolation: isolate;
+}
+
+@media (min-width: 1024px) {
+    .desktop {
+        background: url(photos/wppr_12.png) center center / cover no-repeat;
+    }
 }
 
 .desktop::before {
@@ -125,36 +140,9 @@ button:focus-visible,
         linear-gradient(0deg, transparent 0 32px, rgba(255, 255, 255, 0.1) 32px 33px, transparent 33px),
         linear-gradient(90deg, transparent 0 32px, rgba(255, 255, 255, 0.1) 32px 33px, transparent 33px);
     background-size: 70px 70px;
-    opacity: 0.38;
+    opacity: 0.3;
     pointer-events: none;
     z-index: 1;
-    mix-blend-mode: screen;
-    mask-repeat: no-repeat;
-    mask-image:
-        radial-gradient(circle 130px at 52% 32%, rgba(0, 0, 0, 0.95) 0 95px, transparent 120px),
-        radial-gradient(circle 110px at 22% 26%, rgba(0, 0, 0, 0.95) 0 80px, transparent 105px),
-        radial-gradient(circle 120px at 78% 64%, rgba(0, 0, 0, 0.95) 0 85px, transparent 115px),
-        radial-gradient(circle 115px at 38% 74%, rgba(0, 0, 0, 0.95) 0 85px, transparent 120px),
-        radial-gradient(circle 120px at 65% 78%, rgba(0, 0, 0, 0.95) 0 90px, transparent 125px);
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-image:
-        radial-gradient(circle 130px at 52% 32%, rgba(0, 0, 0, 0.95) 0 95px, transparent 120px),
-        radial-gradient(circle 110px at 22% 26%, rgba(0, 0, 0, 0.95) 0 80px, transparent 105px),
-        radial-gradient(circle 120px at 78% 64%, rgba(0, 0, 0, 0.95) 0 85px, transparent 115px),
-        radial-gradient(circle 115px at 38% 74%, rgba(0, 0, 0, 0.95) 0 85px, transparent 120px),
-        radial-gradient(circle 120px at 65% 78%, rgba(0, 0, 0, 0.95) 0 90px, transparent 125px);
-}
-
-.desktop::after {
-    content: "";
-    position: absolute;
-    inset: -10% -15%;
-    background:
-        radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.18) 0 45px, transparent 120px),
-        radial-gradient(circle at 78% 76%, rgba(255, 255, 255, 0.14) 0 35px, transparent 110px),
-        radial-gradient(circle at 64% 22%, rgba(255, 255, 255, 0.12) 0 30px, transparent 100px);
-    pointer-events: none;
-    z-index: 0;
     mix-blend-mode: screen;
 }
 
@@ -180,74 +168,6 @@ button:focus-visible,
 .datetime {
     padding: 4px 12px;
     border-radius: 6px;
-}
-
-.corner-area {
-    position: absolute;
-    right: clamp(12px, 3vw, 32px);
-    top: 50%;
-    transform: translateY(-50%);
-    min-width: clamp(64px, 12vw, 120px);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.corner-area:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.corner-area button {
-    width: 100%;
-    padding: 4px 10px;
-    background: transparent;
-    border: none;
-    color: var(--text-light);
-    font-size: 12px;
-    letter-spacing: 0.5px;
-    cursor: pointer;
-    font-family: var(--font);
-}
-
-.check-panel {
-    position: fixed;
-    top: calc(var(--menu-height) + 10px);
-    right: clamp(12px, 3vw, 36px);
-    width: clamp(160px, 60vw, 240px);
-    max-width: 90vw;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(12px);
-    border-radius: 10px;
-    box-shadow: var(--shadow);
-    padding: clamp(12px, 3vw, 18px);
-    color: #333;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    z-index: 1001;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.check-panel.is-open {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-.check-panel__placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 40px;
-    font-size: clamp(14px, 3vw, 18px);
-    text-transform: lowercase;
-    color: #222;
 }
 
 /* Файлы на рабочем столе */
@@ -276,8 +196,8 @@ button:focus-visible,
     height: var(--file-icon-size);
     border-radius: var(--border-radius);
     overflow: hidden;
-    box-shadow: var(--shadow);
-    background: var(--code-bg);
+    box-shadow: none;
+    background: transparent;
     transition: var(--transition);
 }
 
@@ -287,7 +207,7 @@ button:focus-visible,
     width: 100%;
     height: 100%;
     object-fit: cover;
-    background: var(--code-bg);
+    background: transparent;
 }
 
 .file-icon video::-webkit-media-controls {
@@ -295,7 +215,7 @@ button:focus-visible,
 }
 
 .folder .file-icon {
-    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+    background: transparent;
 }
 
 .text-icon {

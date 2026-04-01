@@ -1,29 +1,26 @@
-// script.js - jQuery version
-$(document).ready(function() {
+'use strict';
+
+document.addEventListener('DOMContentLoaded', () => {
+
     const CONSTANTS = {
         PADDING: 20,
         UPDATE_INTERVAL: 1000,
         GITHUB_CACHE_TTL: 1000 * 60 * 30,
         GITHUB_CACHE_PREFIX: 'github-profile-cache:',
-        ANIMATION_DEBOUNCE: 100,
         DRAG_THRESHOLD: 5
     };
 
-    const $files = $('.file');
-    const $windowElement = $('#window');
-    const $windowContent = $('#window-content');
-    const $closeButton = $('#close-window');
-    const $datetimeElement = $('#datetime');
-    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // DOM elements
+    const files        = document.querySelectorAll('.file');
+    const windowEl     = document.getElementById('window');
+    const windowContent = document.getElementById('window-content');
+    const closeButton  = document.getElementById('close-window');
+    const datetimeEl   = document.getElementById('datetime');
 
     const DATE_FORMATTERS = {
         menu: new Intl.DateTimeFormat('ru-RU', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: false
         })
     };
 
@@ -36,67 +33,114 @@ $(document).ready(function() {
             { src: 'photos/photo3.png', name: 'Photo 3' }
         ],
         projects: [],
-        trash: [
-            { src: 'trash/item1.png', name: 'Deleted 1' },
-            { src: 'trash/item2.png', name: 'Deleted 2' }
-        ]
+        trash: []
     };
 
     let currentIndex = { photos: 0, projects: 0, trash: 0 };
 
     const GITHUB_PROFILES = [
-        { username: "swid-yera", prefix: "gh-main" },
-        { username: "Antawq", prefix: "gh-alt" }
+        { username: 'swid-yera', prefix: 'gh-main' },
+        { username: 'Antawq',    prefix: 'gh-alt'  }
     ];
 
     const GITHUB_RATE_LIMIT_MESSAGE = 'Превышен лимит GitHub API. Попробуйте снова через несколько минут или откройте профиль напрямую.';
-
-    const telegramState = {
-        chats: [
-            { id: 1, name: 'Alice', avatar: 'photos/photo1.jpg', messages: [{ type: 'received', text: 'Hi there!' }] },
-            { id: 2, name: 'Bob', avatar: 'photos/photo2.jpg', messages: [{ type: 'received', text: 'Hello!' }] }
-        ],
-        activeChatId: 1
-    };
 
     const GITHUB_REQUEST_HEADERS = {
         'Accept': 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28'
     };
 
-    const githubDataCache = {};
+    const githubPromises = new Map();
 
-    const isLocalStorageAvailable = (function() {
+    const isLocalStorageAvailable = (() => {
         try {
-            const testKey = '__gh_cache_test__';
-            localStorage.setItem(testKey, '1');
-            localStorage.removeItem(testKey);
+            const k = '__gh_cache_test__';
+            localStorage.setItem(k, '1');
+            localStorage.removeItem(k);
             return true;
-        } catch (error) {
-            console.warn('LocalStorage недоступен, кэш GitHub отключен.', error);
+        } catch (e) {
+            console.warn('LocalStorage недоступен.', e);
             return false;
         }
     })();
 
-    // Initialize app
+    const telegramState = {
+        chats: [
+            { id: 1, name: 'Alice', avatar: 'photos/photo1.jpg', messages: [{ type: 'received', text: 'Hi there!' }] },
+            { id: 2, name: 'Bob',   avatar: 'photos/photo2.jpg', messages: [{ type: 'received', text: 'Hello!'    }] }
+        ],
+        activeChatId: 1
+    };
+
+    const THEME_PRESETS = [
+        { id: 'neon',     label: 'Neon',   accent: '#00DDEB', purple: '#BB86FC', green: '#03DAC6', swatch: '#00DDEB' },
+        { id: 'rose',     label: 'Rosé',   accent: '#F4A0B5', purple: '#D4A0E0', green: '#F0C0A0', swatch: '#F4A0B5' },
+        { id: 'forest',   label: 'Forest', accent: '#4CAF50', purple: '#81C784', green: '#A5D6A7', swatch: '#4CAF50' },
+        { id: 'amber',    label: 'Amber',  accent: '#FFB300', purple: '#FFD54F', green: '#FFCA28', swatch: '#FFB300' },
+        { id: 'mono',     label: 'Mono',   accent: '#AAAAAA', purple: '#888888', green: '#CCCCCC', swatch: '#AAAAAA' }
+    ];
+
+    const SETTINGS_KEY = 'desktop-settings';
+
+    // --- Utilities ---
+
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return '';
+        return str
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function loadSettings() {
+        if (!isLocalStorageAvailable) return { brightness: 0, theme: 'neon' };
+        try {
+            const raw = localStorage.getItem(SETTINGS_KEY);
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return { brightness: 0, theme: 'neon' };
+    }
+
+    function saveSettings(settings) {
+        if (!isLocalStorageAvailable) return;
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+    }
+
+    function applyBrightness(value) {
+        const overlay = document.getElementById('brightness-overlay');
+        if (!overlay) return;
+        overlay.style.opacity = value / 100;
+    }
+
+    function applyTheme(themeId) {
+        const theme = THEME_PRESETS.find(t => t.id === themeId);
+        if (!theme) return;
+        const root = document.documentElement;
+        root.style.setProperty('--neon-blue',   theme.accent);
+        root.style.setProperty('--neon-purple',  theme.purple);
+        root.style.setProperty('--neon-green',   theme.green);
+    }
+
+    let currentSettings = loadSettings();
+
+    // --- Init ---
+
     function init() {
+        applyBrightness(currentSettings.brightness);
+        applyTheme(currentSettings.theme);
         setupDateTime();
-        setupCheckButton();
         setupFileDragging();
         setupDockItems();
         setupWindowDragging();
         setupWindowClosing();
     }
 
-    // Date and time
+    // --- DateTime ---
+
     function updateDateTime() {
         try {
-            const now = new Date();
-            if ($datetimeElement.length) {
-                $datetimeElement.text(DATE_FORMATTERS.menu.format(now).replace(',', ''));
-            }
-        } catch (error) {
-            console.error('Error updating datetime:', error);
+            if (datetimeEl) datetimeEl.textContent = DATE_FORMATTERS.menu.format(new Date()).replace(',', '');
+        } catch (e) {
+            console.error('Error updating datetime:', e);
         }
     }
 
@@ -107,464 +151,332 @@ $(document).ready(function() {
         }
     }
 
-    // Check button functionality
-    function setupCheckButton() {
-        const $checkButton = $('#check-button');
-        const $checkPanel = $('#check-panel');
+    // --- Settings ---
 
-        if (!$checkButton.length || !$checkPanel.length) return;
+    function renderSettings() {
+        windowContent.innerHTML = `
+            <div class="settings-window">
+                <div class="settings-section">
+                    <label class="settings-label" for="brightness-slider">Brightness</label>
+                    <input type="range" id="brightness-slider" class="settings-slider" min="0" max="70" value="${currentSettings.brightness}">
+                </div>
+                <div class="settings-section">
+                    <span class="settings-label">Theme</span>
+                    <div class="settings-swatches" id="theme-swatches">
+                        ${THEME_PRESETS.map(t => `
+                            <button class="settings-swatch${t.id === currentSettings.theme ? ' is-active' : ''}"
+                                    data-id="${t.id}" style="background:${t.swatch}"
+                                    aria-label="${escapeHtml(t.label)}"></button>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
 
-        const toggleCheckPanel = function(forceState) {
-            const shouldOpen = typeof forceState === 'boolean'
-                ? forceState
-                : !$checkPanel.hasClass('is-open');
-
-            $checkPanel.toggleClass('is-open', shouldOpen);
-            $checkPanel.attr('aria-hidden', !shouldOpen);
-            $checkButton.attr('aria-expanded', shouldOpen);
-        };
-
-        $checkButton.on('click', function(e) {
-            e.stopPropagation();
-            toggleCheckPanel();
+        windowContent.querySelector('#brightness-slider').addEventListener('input', function () {
+            currentSettings.brightness = parseInt(this.value, 10);
+            applyBrightness(currentSettings.brightness);
+            saveSettings(currentSettings);
         });
 
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('.corner-area').length && !$(e.target).closest('.check-panel').length) {
-                toggleCheckPanel(false);
-            }
-        });
-
-        $(document).on('keydown', function(e) {
-            if (e.key === 'Escape') {
-                toggleCheckPanel(false);
-            }
+        windowContent.querySelector('#theme-swatches').addEventListener('click', e => {
+            const swatch = e.target.closest('.settings-swatch');
+            if (!swatch) return;
+            currentSettings.theme = swatch.dataset.id;
+            applyTheme(currentSettings.theme);
+            windowContent.querySelectorAll('#theme-swatches .settings-swatch').forEach(s => s.classList.remove('is-active'));
+            swatch.classList.add('is-active');
+            saveSettings(currentSettings);
         });
     }
 
-    // File dragging and keyboard navigation
+    // --- File Dragging — Pointer Events ---
+
     function setupFileDragging() {
-        $files.each(function() {
-            const $file = $(this);
+        files.forEach(file => {
             let isDragging = false;
-            let offsetX = 0;
-            let offsetY = 0;
-            let hasMoved = false;
-            let startTarget = null;
-            let isProcessing = false;
-            let startX = 0;
-            let startY = 0;
+            let hasMoved   = false;
+            let opening    = false;
+            let offsetX = 0, offsetY = 0;
+            let startX  = 0, startY  = 0;
 
-            const attemptOpenWindow = function() {
-                const type = $file.data('type');
-                if (isProcessing || !type) return;
-                isProcessing = true;
-                openWindow(type);
-                setTimeout(function() {
-                    isProcessing = false;
-                }, CONSTANTS.ANIMATION_DEBOUNCE);
-            };
-
-            const startDrag = function(e) {
-                if (isMobile && !$(e.target).closest('.file-icon').length) return;
-
+            file.addEventListener('pointerdown', e => {
                 e.preventDefault();
-                startTarget = $file[0];
+                file.setPointerCapture(e.pointerId);
                 isDragging = false;
-                hasMoved = false;
+                hasMoved   = false;
+                startX = e.clientX;
+                startY = e.clientY;
+                const rect = file.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+            });
 
-                const rect = $file[0].getBoundingClientRect();
-                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            file.addEventListener('pointermove', e => {
+                if (!file.hasPointerCapture(e.pointerId)) return;
 
-                startX = clientX;
-                startY = clientY;
-                offsetX = clientX - rect.left;
-                offsetY = clientY - rect.top;
-            };
+                const dx = Math.abs(e.clientX - startX);
+                const dy = Math.abs(e.clientY - startY);
 
-            const moveDrag = function(e) {
-                if (!startTarget) return;
-
-                e.preventDefault();
-
-                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-
-                const deltaX = Math.abs(clientX - startX);
-                const deltaY = Math.abs(clientY - startY);
-
-                if (!isDragging && (deltaX > CONSTANTS.DRAG_THRESHOLD || deltaY > CONSTANTS.DRAG_THRESHOLD)) {
+                if (!isDragging && (dx > CONSTANTS.DRAG_THRESHOLD || dy > CONSTANTS.DRAG_THRESHOLD)) {
                     isDragging = true;
-                    $file.addClass('dragging');
+                    file.classList.add('dragging');
                 }
-
                 if (!isDragging) return;
 
                 hasMoved = true;
+                const maxX = window.innerWidth  - file.offsetWidth  - CONSTANTS.PADDING;
+                const maxY = window.innerHeight - file.offsetHeight - CONSTANTS.PADDING - 80;
+                const minY = CONSTANTS.PADDING + 50;
 
-                let newX = clientX - offsetX;
-                let newY = clientY - offsetY;
+                file.style.left = Math.max(CONSTANTS.PADDING, Math.min(e.clientX - offsetX, maxX)) + 'px';
+                file.style.top  = Math.max(minY,              Math.min(e.clientY - offsetY, maxY)) + 'px';
+            });
 
-                const maxX = $(window).width() - $file.outerWidth() - CONSTANTS.PADDING;
-                const maxY = $(window).height() - $file.outerHeight() - CONSTANTS.PADDING - (isMobile ? 100 : 80);
-                const minY = CONSTANTS.PADDING + (isMobile ? 40 : 50);
-
-                newX = Math.max(CONSTANTS.PADDING, Math.min(newX, maxX));
-                newY = Math.max(minY, Math.min(newY, maxY));
-
-                $file.css({
-                    left: newX + 'px',
-                    top: newY + 'px'
-                });
-            };
-
-            const endDrag = function(e) {
-                if (isDragging) {
-                    isDragging = false;
-                    $file.removeClass('dragging');
+            file.addEventListener('pointerup', () => {
+                if (!hasMoved && !opening) {
+                    opening = true;
+                    openWindow(file.dataset.type);
+                    setTimeout(() => { opening = false; }, 100);
                 }
+                if (isDragging) file.classList.remove('dragging');
+                isDragging = false;
+                hasMoved   = false;
+            });
 
-                if (!hasMoved && startTarget && startTarget === $file[0]) {
-                    attemptOpenWindow();
-                }
+            file.addEventListener('pointercancel', () => {
+                if (isDragging) file.classList.remove('dragging');
+                isDragging = false;
+                hasMoved   = false;
+            });
 
-                startTarget = null;
-            };
-
-            if (isMobile) {
-                $file.on('touchstart', startDrag);
-                $file.on('touchmove', moveDrag);
-                $file.on('touchend', endDrag);
-                $file.on('touchcancel', endDrag);
-            } else {
-                $file.on('mousedown', function(e) {
-                    startDrag(e);
-
-                    const moveHandler = function(ev) {
-                        moveDrag(ev);
-                    };
-
-                    const upHandler = function(ev) {
-                        endDrag(ev);
-                        $(document).off('mousemove', moveHandler);
-                        $(document).off('mouseup', upHandler);
-                    };
-
-                    $(document).on('mousemove', moveHandler);
-                    $(document).on('mouseup', upHandler);
-                });
-            }
-
-            // Keyboard navigation
-            $file.on('keydown', function(e) {
+            file.addEventListener('keydown', e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    attemptOpenWindow();
+                    openWindow(file.dataset.type);
                 }
             });
         });
     }
 
-    // Dock items
+    // --- Dock Items ---
+
     function setupDockItems() {
-        const $dockItems = $('.dock-item');
-        $dockItems.each(function() {
-            const $item = $(this);
-            const eventType = isMobile ? 'touchend' : 'click';
-
-            $item.on(eventType, function(e) {
+        document.querySelectorAll('.dock-item').forEach(item => {
+            item.addEventListener('click', e => {
                 e.stopPropagation();
-                openWindow($item.data('type'));
+                openWindow(item.dataset.type);
             });
-
-            // Keyboard navigation
-            $item.on('keydown', function(e) {
+            item.addEventListener('keydown', e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    openWindow($item.data('type'));
+                    openWindow(item.dataset.type);
                 }
             });
         });
     }
 
-    // Window dragging
+    // --- Window Dragging — Pointer Events ---
+
     function setupWindowDragging() {
-        let isDraggingWindow = false;
-        let startX = 0;
-        let startY = 0;
-        let initialX = 0;
-        let initialY = 0;
-        const $windowHeader = $windowElement.find('.window-header');
+        const header = windowEl.querySelector('.window-header');
+        let isDragging = false;
+        let startX = 0, startY = 0, initialX = 0, initialY = 0;
 
-        const startDragWindow = function(e) {
-            if (!$windowElement.hasClass('is-visible')) return;
-            if ($(e.target).closest('.window-control').length) return;
-
+        header.addEventListener('pointerdown', e => {
+            if (!windowEl.classList.contains('is-visible')) return;
+            if (e.target.closest('.window-control')) return;
             e.preventDefault();
+            header.setPointerCapture(e.pointerId);
 
-            const touchEvent = e.type.includes('touch');
-            startX = touchEvent ? e.touches[0].clientX : e.clientX;
-            startY = touchEvent ? e.touches[0].clientY : e.clientY;
-
-            const rect = $windowElement[0].getBoundingClientRect();
-            $windowElement.addClass('is-dragging');
-            $windowElement.css({
-                left: rect.left + 'px',
-                top: rect.top + 'px'
-            });
-
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = windowEl.getBoundingClientRect();
+            windowEl.classList.add('is-dragging');
+            windowEl.style.left = rect.left + 'px';
+            windowEl.style.top  = rect.top  + 'px';
             initialX = rect.left;
             initialY = rect.top;
-            isDraggingWindow = true;
-        };
+            isDragging = true;
+        });
 
-        const moveDragWindow = function(e) {
-            if (!isDraggingWindow) return;
+        header.addEventListener('pointermove', e => {
+            if (!isDragging) return;
             e.preventDefault();
+            const maxX = window.innerWidth  - windowEl.offsetWidth;
+            const maxY = window.innerHeight - windowEl.offsetHeight;
+            windowEl.style.left = Math.max(0, Math.min(initialX + e.clientX - startX, Math.max(0, maxX))) + 'px';
+            windowEl.style.top  = Math.max(0, Math.min(initialY + e.clientY - startY, Math.max(0, maxY))) + 'px';
+        });
 
-            const touchEvent = e.type.includes('touch');
-            const clientX = touchEvent ? e.touches[0].clientX : e.clientX;
-            const clientY = touchEvent ? e.touches[0].clientY : e.clientY;
-            const deltaX = clientX - startX;
-            const deltaY = clientY - startY;
-
-            const maxX = $(window).width() - $windowElement.outerWidth();
-            const maxY = $(window).height() - $windowElement.outerHeight();
-
-            const newX = Math.max(0, Math.min(initialX + deltaX, Math.max(0, maxX)));
-            const newY = Math.max(0, Math.min(initialY + deltaY, Math.max(0, maxY)));
-
-            $windowElement.css({
-                left: newX + 'px',
-                top: newY + 'px'
-            });
-        };
-
-        const endDragWindow = function() {
-            isDraggingWindow = false;
-        };
-
-        $windowHeader.on('mousedown', startDragWindow);
-        $windowHeader.on('touchstart', startDragWindow);
-        $(document).on('mousemove', moveDragWindow);
-        $(document).on('touchmove', moveDragWindow);
-        $(document).on('mouseup', endDragWindow);
-        $(document).on('touchend', endDragWindow);
+        header.addEventListener('pointerup',     () => { isDragging = false; });
+        header.addEventListener('pointercancel', () => { isDragging = false; });
     }
 
-    // Window closing
+    // --- Window Closing ---
+
     function setupWindowClosing() {
         let closingAnimationHandler = null;
 
-        const resetWindowPosition = function() {
-            $windowElement.removeClass('is-dragging');
-            $windowElement.css({
-                left: '',
-                top: ''
-            });
+        const resetWindowPosition = () => {
+            windowEl.classList.remove('is-dragging');
+            windowEl.style.left = '';
+            windowEl.style.top  = '';
         };
 
-        const closeWindow = function() {
-            if (!$windowElement.hasClass('is-visible') || $windowElement.hasClass('is-closing')) {
-                return;
-            }
+        const closeWindow = () => {
+            if (!windowEl.classList.contains('is-visible') || windowEl.classList.contains('is-closing')) return;
 
             if (closingAnimationHandler) {
-                $windowElement.off('animationend', closingAnimationHandler);
+                windowEl.removeEventListener('animationend', closingAnimationHandler);
                 closingAnimationHandler = null;
             }
 
-            $windowElement.addClass('is-closing');
+            windowEl.classList.add('is-closing');
 
-            closingAnimationHandler = function(event) {
-                if (event.originalEvent.animationName !== 'window-minimize') return;
-
-                $windowElement.removeClass('is-visible is-closing');
-                $windowContent.html('');
+            closingAnimationHandler = event => {
+                if (event.animationName !== 'window-minimize') return;
+                windowEl.classList.remove('is-visible', 'is-closing');
+                windowContent.innerHTML = '';
                 resetWindowPosition();
-
-                $windowElement.off('animationend', closingAnimationHandler);
+                windowEl.removeEventListener('animationend', closingAnimationHandler);
                 closingAnimationHandler = null;
             };
 
-            $windowElement.on('animationend', closingAnimationHandler);
+            windowEl.addEventListener('animationend', closingAnimationHandler);
         };
 
-        $closeButton.on(isMobile ? 'touchend' : 'click', function(e) {
+        closeButton.addEventListener('click', e => {
             e.stopPropagation();
-            e.preventDefault();
             closeWindow();
         });
 
-        $(document).on('keydown', function(e) {
-            if (e.key === 'Escape' && $windowElement.hasClass('is-visible')) {
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && windowEl.classList.contains('is-visible')) {
                 closeWindow();
             }
         });
     }
 
-    // Open window
-    const createFolderRenderer = function(type) {
-        return function(index) {
-            return renderFolderContent(type, index);
-        };
-    };
+    // --- Open Window ---
 
-    let projectsLoaded = false;
+    let projectsPromise = null;
 
     function loadProjects() {
-        if (projectsLoaded) return Promise.resolve(folderContents.projects);
-
-        return fetch('projects/projects.json')
-            .then(function(r) {
-                if (!r.ok) throw new Error(r.status);
-                return r.json();
-            })
-            .then(function(data) {
-                folderContents.projects = data.map(function(item) {
-                    return {
-                        src: 'projects/' + item.image,
-                        name: item.name,
-                        url: item.url || null
-                    };
-                });
-                projectsLoaded = true;
+        return projectsPromise ??= fetch('projects/projects.json')
+            .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(data => {
+                folderContents.projects = data.map(item => ({
+                    src: 'projects/' + item.image,
+                    name: item.name,
+                    url: item.url ?? null
+                }));
                 return folderContents.projects;
             });
     }
 
     const WINDOW_RENDER_STRATEGIES = {
-        photos: createFolderRenderer('photos'),
-        projects: function(index) {
-            $windowContent.html('<div class="text-content"><p>Loading...</p></div>');
+        photos:    index => renderFolderContent('photos',   index),
+        projects:  index => {
+            windowContent.innerHTML = '<div class="text-content"><p>Loading...</p></div>';
             loadProjects()
-                .then(function() {
-                    renderFolderContent('projects', index);
-                })
-                .catch(function() {
-                    $windowContent.html('<div class="folder-content"><p>Не удалось загрузить проекты.</p></div>');
-                });
+                .then(() => renderFolderContent('projects', index))
+                .catch(() => { windowContent.innerHTML = '<div class="folder-content"><p>Не удалось загрузить проекты.</p></div>'; });
         },
-        trash: createFolderRenderer('trash'),
-        text: function() { return renderTextFile(); },
-        calls: function() { return renderCalls(); },
-        notes: function() { return renderNotes(); },
-        github: function() { return loadGitHubProfile(); },
-        telegram: function() { return renderTelegram(); },
-        instagram: function() { return renderPlaceholder('Instagram'); }
+        trash:     index => renderFolderContent('trash',    index),
+        text:      ()    => renderTextFile(),
+        calls:     ()    => renderCalls(),
+        notes:     ()    => renderNotes(),
+        github:    ()    => loadGitHubProfile(),
+        telegram:  ()    => renderTelegram(),
+        instagram: ()    => renderPlaceholder('Instagram'),
+        settings:  ()    => renderSettings()
     };
 
     function openWindow(type, fileIndex) {
         if (!type) return;
-
         try {
-            const wasHidden = !$windowElement.hasClass('is-visible');
-
+            const wasHidden = !windowEl.classList.contains('is-visible');
             if (wasHidden) {
-                $windowElement.removeClass('is-dragging');
-                $windowElement.css({
-                    left: '',
-                    top: ''
-                });
+                windowEl.classList.remove('is-dragging');
+                windowEl.style.left = '';
+                windowEl.style.top  = '';
             }
-
-            $windowElement.removeClass('is-closing');
-            $windowElement.addClass('is-visible');
-            $windowContent.html('');
+            windowEl.classList.remove('is-closing');
+            windowEl.classList.add('is-visible');
+            windowContent.innerHTML = '';
 
             const render = WINDOW_RENDER_STRATEGIES[type];
-
             if (render) {
                 render(fileIndex);
             } else {
-                console.warn('No renderer configured for window type: ' + type);
+                console.warn('No renderer for window type:', type);
                 renderPlaceholder(type);
             }
         } catch (error) {
-            console.error('Error opening window: ' + type, error);
-            $windowContent.html('<div class="error-content"><p>Не удалось открыть содержимое.</p></div>');
+            console.error('Error opening window:', type, error);
+            windowContent.innerHTML = '<div class="error-content"><p>Не удалось открыть содержимое.</p></div>';
         }
     }
 
-    // Rendering functions
+    // --- Rendering ---
+
     function renderPlaceholder(name) {
-        $windowContent.html(`
+        windowContent.innerHTML = `
             <div class="text-content">
-                <h2>${name}</h2>
+                <h2>${escapeHtml(name)}</h2>
                 <p>Содержимое в разработке.</p>
             </div>
-        `);
+        `;
     }
 
     function renderFolder(type) {
         const items = folderContents[type] || [];
         if (!items.length) {
-            $windowContent.html(`
-                <div class="folder-content">
-                    <p>Папка пока пуста.</p>
-                </div>
-            `);
+            windowContent.innerHTML = '<div class="folder-content"><p>Папка пока пуста.</p></div>';
             return;
         }
 
-        $windowContent.html(`
+        windowContent.innerHTML = `
             <div class="folder-content">
                 ${items.map((item, index) => `
-                    <div class="folder-item" data-index="${index}" data-type="${type}" tabindex="0" role="button" aria-label="Open ${item.name}">
-                        <img src="${item.src}" alt="">
-                        <span>${item.name}</span>
+                    <div class="folder-item" data-index="${index}" data-type="${escapeHtml(type)}"
+                         tabindex="0" role="button" aria-label="Open ${escapeHtml(item.name)}">
+                        <img src="${escapeHtml(item.src)}" alt="">
+                        <span>${escapeHtml(item.name)}</span>
                     </div>
                 `).join('')}
             </div>
-        `);
+        `;
 
-        const $folderItems = $windowContent.find('.folder-item');
-        const selectEvent = isMobile ? 'touchend' : 'click';
+        const handleSelection = e => {
+            const item = e.target.closest('.folder-item');
+            if (!item) return;
+            const index = parseInt(item.dataset.index, 10);
+            if (isNaN(index)) return;
+            if (type === 'projects') {
+                const project = folderContents[type][index];
+                if (project?.url) window.open(project.url, '_blank', 'noopener,noreferrer');
+            } else {
+                openWindow(type, index);
+            }
+        };
 
-        $folderItems.each(function() {
-            const $item = $(this);
-
-            const handleSelection = function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-
-                const index = parseInt($item.data('index'), 10);
-                if (isNaN(index)) return;
-
-                if (type === 'projects') {
-                    const project = folderContents[type][index];
-                    if (project && project.url) {
-                        window.open(project.url, '_blank', 'noopener,noreferrer');
-                    }
-                } else {
-                    openWindow(type, index);
-                }
-            };
-
-            $item.on(selectEvent, handleSelection);
-
-            $item.on('keydown', function(e) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSelection(e);
-                }
-            });
+        const folderContent = windowContent.querySelector('.folder-content');
+        folderContent.addEventListener('click', handleSelection);
+        folderContent.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            handleSelection(e);
         });
     }
 
     function renderFolderContent(type, fileIndex) {
         const items = folderContents[type] || [];
-
         if (!items.length) {
-            $windowContent.html(`
-                <div class="folder-content">
-                    <p>Папка пока пуста.</p>
-                </div>
-            `);
+            windowContent.innerHTML = '<div class="folder-content"><p>Папка пока пуста.</p></div>';
             return;
         }
-
         if (Number.isInteger(fileIndex) && items[fileIndex]) {
             renderGallery(type, fileIndex);
         } else {
@@ -573,21 +485,21 @@ $(document).ready(function() {
     }
 
     function renderTextFile() {
-        $windowContent.html(`
+        windowContent.innerHTML = `
             <div class="text-content">
                 <h2>About</h2>
                 <p>This is a desktop interface template.</p>
                 <p>Built with vanilla JavaScript, HTML, and CSS.</p>
             </div>
-        `);
+        `;
     }
 
     function renderCalls() {
-        $windowContent.html('<div class="call-log"><p>No recent calls</p></div>');
+        windowContent.innerHTML = '<div class="call-log"><p>No recent calls</p></div>';
     }
 
     function renderNotes() {
-        $windowContent.html('<textarea class="notes-area" placeholder="Your notes..." aria-label="Notes textarea"></textarea>');
+        windowContent.innerHTML = '<textarea class="notes-area" placeholder="Your notes..." aria-label="Notes textarea"></textarea>';
     }
 
     function renderGallery(type, startIndex) {
@@ -597,36 +509,37 @@ $(document).ready(function() {
 
         currentIndex[type] = startIndex;
 
-        $windowContent.html(`
+        windowContent.innerHTML = `
             <div class="gallery" role="region" aria-label="Image gallery">
                 <button class="arrow left" aria-label="Previous image">&#10094;</button>
                 <div class="gallery-container">
                     ${items.map((item, idx) => `
-                        <div class="gallery-item${type === 'projects' ? ' gallery-item--link' : ''}" role="img" aria-label="${item.name}">
-                            <img src="${item.src}" alt="${item.name}">
+                        <div class="gallery-item${type === 'projects' ? ' gallery-item--link' : ''}"
+                             data-index="${idx}" role="img" aria-label="${escapeHtml(item.name)}">
+                            <img src="${escapeHtml(item.src)}" alt="${escapeHtml(item.name)}">
                         </div>
                     `).join('')}
                 </div>
                 <button class="arrow right" aria-label="Next image">&#10095;</button>
             </div>
-        `);
+        `;
 
-        const $container = $windowContent.find('.gallery-container');
-        const $leftArrow = $windowContent.find('.arrow.left');
-        const $rightArrow = $windowContent.find('.arrow.right');
+        const container  = windowContent.querySelector('.gallery-container');
+        const leftArrow  = windowContent.querySelector('.arrow.left');
+        const rightArrow = windowContent.querySelector('.arrow.right');
 
-        const updateGallery = function() {
-            $container.css('transform', `translateX(-${currentIndex[type] * 100}%)`);
-            $leftArrow.attr('aria-disabled', currentIndex[type] === 0);
-            $rightArrow.attr('aria-disabled', currentIndex[type] === items.length - 1);
+        const updateGallery = () => {
+            container.style.transform = `translateX(-${currentIndex[type] * 100}%)`;
+            leftArrow.setAttribute('aria-disabled',  String(currentIndex[type] === 0));
+            rightArrow.setAttribute('aria-disabled', String(currentIndex[type] === items.length - 1));
         };
 
-        $leftArrow.on('click', function() {
+        leftArrow.addEventListener('click', () => {
             currentIndex[type] = (currentIndex[type] - 1 + items.length) % items.length;
             updateGallery();
         });
 
-        $rightArrow.on('click', function() {
+        rightArrow.addEventListener('click', () => {
             currentIndex[type] = (currentIndex[type] + 1) % items.length;
             updateGallery();
         });
@@ -634,20 +547,20 @@ $(document).ready(function() {
         updateGallery();
 
         if (type === 'projects') {
-            $windowContent.find('.gallery-item--link img').each(function(index) {
-                $(this).on('click', function() {
-                    if (items[index] && items[index].url) {
-                        window.open(items[index].url, '_blank', 'noopener,noreferrer');
-                    }
-                });
+            windowContent.querySelector('.gallery').addEventListener('click', e => {
+                const item = e.target.closest('.gallery-item--link');
+                if (!item) return;
+                const idx = parseInt(item.dataset.index, 10);
+                if (!isNaN(idx) && items[idx]?.url) {
+                    window.open(items[idx].url, '_blank', 'noopener,noreferrer');
+                }
             });
         }
     }
 
-    // GitHub functions
-    const buildGitHubCacheKey = function(username) {
-        return CONSTANTS.GITHUB_CACHE_PREFIX + username;
-    };
+    // --- GitHub ---
+
+    const buildGitHubCacheKey = username => CONSTANTS.GITHUB_CACHE_PREFIX + username;
 
     function readGitHubCache(username) {
         if (!isLocalStorageAvailable) return null;
@@ -655,17 +568,14 @@ $(document).ready(function() {
             const raw = localStorage.getItem(buildGitHubCacheKey(username));
             if (!raw) return null;
             const parsed = JSON.parse(raw);
-            if (!parsed || typeof parsed !== 'object') return null;
-            const timestamp = parsed.timestamp;
-            const data = parsed.data;
-            if (!timestamp || !data) return null;
-            if (Date.now() - timestamp > CONSTANTS.GITHUB_CACHE_TTL) {
+            if (!parsed?.timestamp || !parsed?.data) return null;
+            if (Date.now() - parsed.timestamp > CONSTANTS.GITHUB_CACHE_TTL) {
                 localStorage.removeItem(buildGitHubCacheKey(username));
                 return null;
             }
-            return data;
-        } catch (error) {
-            console.warn('Не удалось прочитать кэш GitHub.', error);
+            return parsed.data;
+        } catch (e) {
+            console.warn('Не удалось прочитать кэш GitHub.', e);
             return null;
         }
     }
@@ -673,42 +583,42 @@ $(document).ready(function() {
     function writeGitHubCache(username, data) {
         if (!isLocalStorageAvailable) return;
         try {
-            localStorage.setItem(buildGitHubCacheKey(username), JSON.stringify({
-                timestamp: Date.now(),
-                data: data
-            }));
-        } catch (error) {
-            console.warn('Не удалось записать кэш GitHub.', error);
+            localStorage.setItem(buildGitHubCacheKey(username), JSON.stringify({ timestamp: Date.now(), data }));
+        } catch (e) {
+            console.warn('Не удалось записать кэш GitHub.', e);
         }
     }
 
-    function loadGitHubProfile() {
-        $windowContent.html(`
-            <div class="github-profile">
-                <div class="gh-profiles">
-                    ${GITHUB_PROFILES.map(renderGitHubProfileSection).join("")}
-                </div>
-            </div>
-        `);
-
-        GITHUB_PROFILES.forEach(function(profile) {
-            hydrateGitHubProfile(profile);
-        });
+    function fetchGitHubData(username) {
+        if (!githubPromises.has(username)) {
+            const cached = readGitHubCache(username);
+            githubPromises.set(username,
+                cached ? Promise.resolve(cached) : refreshGitHubData(username)
+            );
+        }
+        return githubPromises.get(username);
     }
 
-    function renderGitHubProfileSection(profile) {
-        const prefix = profile.prefix;
-        const username = profile.username;
+    function loadGitHubProfile() {
+        windowContent.innerHTML = `
+            <div class="github-profile">
+                <div class="gh-profiles">
+                    ${GITHUB_PROFILES.map(renderGitHubProfileSection).join('')}
+                </div>
+            </div>
+        `;
+        GITHUB_PROFILES.forEach(hydrateGitHubProfile);
+    }
 
+    function renderGitHubProfileSection({ prefix, username }) {
         return `
             <section class="gh-profile" data-user="${username}">
                 <div class="gh-body">
                     <div class="gh-left-column">
-                        <img id="${prefix}-avatar" class="gh-avatar" src="" alt="Avatar ${username}" />
+                        <img id="${prefix}-avatar" class="gh-avatar" src="" alt="Avatar ${username}">
                         <h2 id="${prefix}-name">Loading...</h2>
                         <p id="${prefix}-followers">Loading...</p>
                     </div>
-
                     <div class="gh-right-column">
                         <div class="gh-readme" id="${prefix}-readme">Loading README...</div>
                         <div class="gh-repos">
@@ -721,250 +631,126 @@ $(document).ready(function() {
         `;
     }
 
-    function hydrateGitHubProfile(profile) {
-        const username = profile.username;
-        const prefix = profile.prefix;
-
-        const $avatar = $('#' + prefix + '-avatar');
-        const $name = $('#' + prefix + '-name');
-        const $followers = $('#' + prefix + '-followers');
-        const $reposList = $('#' + prefix + '-repos');
-        const $readmeContainer = $('#' + prefix + '-readme');
+    function hydrateGitHubProfile({ username, prefix }) {
+        const avatar    = document.getElementById(prefix + '-avatar');
+        const nameEl    = document.getElementById(prefix + '-name');
+        const followers = document.getElementById(prefix + '-followers');
+        const reposList = document.getElementById(prefix + '-repos');
+        const readmeEl  = document.getElementById(prefix + '-readme');
 
         fetchGitHubData(username)
-            .then(function(result) {
-                const user = result.user;
-                const repos = result.repos;
-                const readme = result.readme;
+            .then(({ user, repos, readme }) => {
+                if (avatar && user) { avatar.src = user.avatar_url; avatar.alt = 'Avatar ' + user.login; }
+                if (nameEl)      nameEl.textContent      = user ? (user.name || user.login) : 'Failed to load';
+                if (followers && user) followers.textContent = `${user.followers} followers · ${user.following} following`;
 
-                if ($avatar.length && user) {
-                    $avatar.attr('src', user.avatar_url);
-                    $avatar.attr('alt', 'Avatar ' + user.login);
-                }
-
-                if ($name.length) {
-                    $name.text(user ? (user.name || user.login) : "Failed to load");
-                }
-
-                if ($followers.length && user) {
-                    $followers.text(user.followers + ' followers · ' + user.following + ' following');
-                }
-
-                if ($reposList.length) {
-                    if (repos && repos.length) {
-                        $reposList.html(repos.map(function(repo) {
-                            return `
-                                <li>
-                                    <a href="${repo.html_url}" target="_blank" rel="noopener noreferrer">${repo.name}</a> ⭐ ${repo.stargazers_count}
-                                </li>
-                            `;
-                        }).join(""));
+                if (reposList) {
+                    if (repos?.length) {
+                        reposList.innerHTML = repos.map(repo => `
+                            <li>
+                                <a href="${escapeHtml(repo.html_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(repo.name)}</a>
+                                ⭐ ${escapeHtml(String(repo.stargazers_count))}
+                            </li>
+                        `).join('');
                     } else {
-                        $reposList.text("No public repositories.");
+                        reposList.textContent = 'No public repositories.';
                     }
                 }
 
-                if ($readmeContainer.length) {
+                if (readmeEl) {
                     if (readme && typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined') {
-                        const parsed = marked.parse(readme);
-                        const sanitized = DOMPurify.sanitize(parsed);
-                        $readmeContainer.html(sanitized);
-                    } else if (readme) {
-                        $readmeContainer.text(readme);
+                        readmeEl.innerHTML = DOMPurify.sanitize(marked.parse(readme));
                     } else {
-                        $readmeContainer.text("No README found.");
+                        readmeEl.textContent = readme || 'No README found.';
                     }
                 }
             })
-            .catch(function(error) {
-                const isRateLimit = Boolean(error && error.isRateLimit);
-
-                if ($name.length) {
-                    $name.text(isRateLimit ? 'Лимит GitHub API' : 'Failed to load');
-                }
-
-                if ($followers.length) {
-                    $followers.text('');
-                }
-
-                if ($reposList.length) {
+            .catch(error => {
+                const isRateLimit = Boolean(error?.isRateLimit);
+                if (nameEl)      nameEl.textContent      = isRateLimit ? 'Лимит GitHub API' : 'Failed to load';
+                if (followers)   followers.textContent   = '';
+                if (reposList) {
                     if (isRateLimit) {
-                        $reposList.html(`
-                            <li>
-                                <span>${GITHUB_RATE_LIMIT_MESSAGE}</span><br>
-                                <a href="https://github.com/${username}" target="_blank" rel="noopener noreferrer">Открыть профиль ${username}</a>
-                            </li>
-                        `);
+                        reposList.innerHTML = `<li><span>${GITHUB_RATE_LIMIT_MESSAGE}</span><br>
+                            <a href="https://github.com/${escapeHtml(username)}" target="_blank" rel="noopener noreferrer">Открыть профиль ${escapeHtml(username)}</a></li>`;
                     } else {
-                        $reposList.text('Failed to load repos.');
+                        reposList.textContent = 'Failed to load repos.';
                     }
                 }
-
-                if ($readmeContainer.length) {
-                    $readmeContainer.text(isRateLimit ? GITHUB_RATE_LIMIT_MESSAGE : 'No README found.');
-                }
-
+                if (readmeEl) readmeEl.textContent = isRateLimit ? GITHUB_RATE_LIMIT_MESSAGE : 'No README found.';
                 console.error('GitHub profile error:', error);
             });
-    }
-
-    function fetchGitHubData(username) {
-        if (!githubDataCache[username] || githubDataCache[username].pending) {
-            const cached = readGitHubCache(username);
-
-            if (cached) {
-                githubDataCache[username] = { data: Promise.resolve(cached), pending: false };
-
-                setTimeout(function() {
-                    refreshGitHubData(username)
-                        .then(function(freshData) {
-                            githubDataCache[username] = { data: Promise.resolve(freshData), pending: false };
-                        })
-                        .catch(function(error) {
-                            if (!(error && error.isRateLimit)) {
-                                console.warn('Не удалось обновить данные GitHub для ' + username, error);
-                            }
-                        });
-                }, 100);
-            } else {
-                githubDataCache[username] = { data: refreshGitHubData(username), pending: true };
-                githubDataCache[username].data.finally(function() {
-                    githubDataCache[username].pending = false;
-                });
-            }
-        }
-
-        return githubDataCache[username].data;
     }
 
     function refreshGitHubData(username) {
         return Promise.all([
             fetchGitHubUser(username),
-            fetchGitHubRepos(username).catch(function(error) {
-                if (error && error.isRateLimit) throw error;
-                return [];
-            }),
-            fetchUserReadme(username).catch(function(error) {
-                if (error && error.isRateLimit) throw error;
-                return null;
-            })
+            fetchGitHubRepos(username).catch(e => { if (e?.isRateLimit) throw e; return []; }),
+            fetchUserReadme(username).catch(e  => { if (e?.isRateLimit) throw e; return null; })
         ])
-            .then(function(results) {
-                const payload = {
-                    user: results[0],
-                    repos: results[1],
-                    readme: results[2]
-                };
-                writeGitHubCache(username, payload);
-                return payload;
-            })
-            .catch(function(error) {
-                if (githubDataCache[username]) {
-                    delete githubDataCache[username];
-                }
-                throw error;
-            });
+        .then(([user, repos, readme]) => {
+            const payload = { user, repos, readme };
+            writeGitHubCache(username, payload);
+            return payload;
+        })
+        .catch(error => {
+            githubPromises.delete(username);
+            throw error;
+        });
     }
 
-    async function fetchGitHubResource(url, options) {
-        options = options || {};
+    async function fetchGitHubResource(url, options = {}) {
         const responseType = options.responseType || 'json';
-
         try {
             const response = await fetch(url, { headers: GITHUB_REQUEST_HEADERS });
-
             if (response.status === 403) {
                 let message = 'GitHub API rate limit exceeded';
-                try {
-                    const body = await response.json();
-                    if (body && body.message) {
-                        message = body.message;
-                    }
-                } catch (error) {
-                    console.warn('Не удалось разобрать тело ответа GitHub при 403.', error);
-                }
-
-                const rateLimitError = new Error(message);
-                rateLimitError.isRateLimit = true;
-                rateLimitError.status = 403;
-                throw rateLimitError;
+                try { const body = await response.json(); if (body?.message) message = body.message; } catch (e) {}
+                const err = new Error(message);
+                err.isRateLimit = true;
+                err.status = 403;
+                throw err;
             }
-
             if (!response.ok) {
-                const text = await response.text().catch(function() { return ''; });
-                const error = new Error(text || response.statusText);
-                error.status = response.status;
-                throw error;
+                const text = await response.text().catch(() => '');
+                const err = new Error(text || response.statusText);
+                err.status = response.status;
+                throw err;
             }
-
-            if (responseType === 'text') {
-                return response.text();
-            }
-
-            if (responseType === 'json') {
-                return response.json();
-            }
-
-            return response;
+            return responseType === 'text' ? response.text() : response.json();
         } catch (error) {
             if (error.isRateLimit) throw error;
-            console.error('GitHub fetch error for ' + url + ':', error);
+            console.error('GitHub fetch error:', url, error);
             throw error;
         }
     }
 
-    function fetchGitHubUser(username) {
-        return fetchGitHubResource('https://api.github.com/users/' + username);
-    }
+    const fetchGitHubUser  = username => fetchGitHubResource(`https://api.github.com/users/${username}`);
+    const fetchGitHubRepos = username => fetchGitHubResource(`https://api.github.com/users/${username}/repos?sort=updated&per_page=5`)
+        .then(repos => { if (!Array.isArray(repos)) throw new Error('Invalid repos'); return repos; });
 
-    function fetchGitHubRepos(username) {
-        return fetchGitHubResource('https://api.github.com/users/' + username + '/repos?sort=updated&per_page=5')
-            .then(function(repos) {
-                if (!Array.isArray(repos)) throw new Error("Invalid repos response");
-                return repos;
-            });
-    }
-
-    function fetchUserReadme(username) {
-        const readmePaths = [
-            'https://raw.githubusercontent.com/' + username + '/' + username + '/main/README.md',
-            'https://raw.githubusercontent.com/' + username + '/' + username + '/master/README.md',
-            'https://raw.githubusercontent.com/' + username + '/profile/main/README.md'
+    async function fetchUserReadme(username) {
+        const paths = [
+            `https://raw.githubusercontent.com/${username}/${username}/main/README.md`,
+            `https://raw.githubusercontent.com/${username}/${username}/master/README.md`,
+            `https://raw.githubusercontent.com/${username}/profile/main/README.md`
         ];
-
-        const tryFetch = async function(index) {
-            index = index || 0;
-
-            if (index >= readmePaths.length) {
-                throw new Error("README not found");
-            }
-
+        for (const path of paths) {
             try {
-                const response = await fetch(readmePaths[index]);
-                if (response.status === 403) {
-                    const rateLimitError = new Error('GitHub raw rate limit');
-                    rateLimitError.isRateLimit = true;
-                    rateLimitError.status = 403;
-                    throw rateLimitError;
-                }
-
-                if (!response.ok) {
-                    throw new Error("Not found");
-                }
-
-                return await response.text();
-            } catch (error) {
-                if (error && error.isRateLimit) throw error;
-                return tryFetch(index + 1);
+                const res = await fetch(path);
+                if (res.status === 403) { const e = new Error('rate limit'); e.isRateLimit = true; throw e; }
+                if (res.ok) return res.text();
+            } catch (e) {
+                if (e.isRateLimit) throw e;
             }
-        };
-
-        return tryFetch();
+        }
+        throw new Error('README not found');
     }
 
-    // Telegram
+    // --- Telegram ---
+
     function renderTelegram() {
-        $windowContent.html(`
+        windowContent.innerHTML = `
             <div class="telegram-window">
                 <div class="telegram-header">Telegram</div>
                 <div class="telegram-body">
@@ -976,112 +762,79 @@ $(document).ready(function() {
                     <button id="telegram-send" aria-label="Send message">&#9658;</button>
                 </div>
             </div>
-        `);
-
-        const $chatList = $('#telegram-chat-list');
-        const $messagesContainer = $('#telegram-messages');
-        const $input = $('#telegram-input');
-        const $sendBtn = $('#telegram-send');
+        `;
 
         if (!telegramState.chats.length) {
-            telegramState.chats.push({
-                id: Date.now(),
-                name: 'New chat',
-                avatar: 'photos/photo1.jpg',
-                messages: []
-            });
+            telegramState.chats.push({ id: Date.now(), name: 'New chat', avatar: 'photos/photo1.jpg', messages: [] });
         }
+        if (!telegramState.activeChatId) telegramState.activeChatId = telegramState.chats[0].id;
 
-        if (!telegramState.activeChatId) {
-            telegramState.activeChatId = telegramState.chats[0].id;
-        }
+        const chatList = document.getElementById('telegram-chat-list');
+        const messages = document.getElementById('telegram-messages');
+        const input    = document.getElementById('telegram-input');
+        const sendBtn  = document.getElementById('telegram-send');
 
-        const findChat = function(id) {
-            return telegramState.chats.find(function(chat) {
-                return chat.id === id;
-            });
+        const findChat = id => telegramState.chats.find(c => c.id === id);
+
+        const renderChatList = () => {
+            chatList.innerHTML = telegramState.chats.map(chat => `
+                <div class="telegram-chat-item${chat.id === telegramState.activeChatId ? ' is-active' : ''}"
+                     data-id="${chat.id}" role="listitem" tabindex="0" aria-label="Chat with ${chat.name}">
+                    <img src="${chat.avatar}" alt="">
+                    <span>${chat.name}</span>
+                </div>
+            `).join('');
         };
 
-        const renderChatList = function() {
-            $chatList.html(telegramState.chats.map(function(chat) {
-                return `
-                    <div class="telegram-chat-item${chat.id === telegramState.activeChatId ? ' is-active' : ''}"
-                         data-id="${chat.id}"
-                         role="listitem"
-                         tabindex="0"
-                         aria-label="Chat with ${chat.name}">
-                        <img src="${chat.avatar}" alt="">
-                        <span>${chat.name}</span>
-                    </div>
-                `;
-            }).join(''));
-
-            $chatList.find('.telegram-chat-item').each(function() {
-                $(this).on('keydown', function(e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        $(this).trigger('click');
-                    }
-                });
-            });
-        };
-
-        const renderMessages = function() {
+        const renderMessages = () => {
             const chat = findChat(telegramState.activeChatId);
             if (!chat) return;
-
-            $messagesContainer.html(chat.messages.map(function(msg) {
-                return `<div class="telegram-message ${msg.type}" role="article">${msg.text}</div>`;
-            }).join(''));
-
-            $messagesContainer.scrollTop($messagesContainer[0].scrollHeight);
+            messages.innerHTML = chat.messages.map(msg =>
+                `<div class="telegram-message ${escapeHtml(msg.type)}" role="article">${escapeHtml(msg.text)}</div>`
+            ).join('');
+            messages.scrollTop = messages.scrollHeight;
         };
 
-        $chatList.on('click', function(e) {
-            const $item = $(e.target).closest('.telegram-chat-item');
-            if (!$item.length) return;
-
-            const nextId = parseInt($item.data('id'), 10);
+        chatList.addEventListener('click', e => {
+            const item = e.target.closest('.telegram-chat-item');
+            if (!item) return;
+            const nextId = parseInt(item.dataset.id, 10);
             if (isNaN(nextId)) return;
-
             telegramState.activeChatId = nextId;
             renderChatList();
             renderMessages();
         });
 
-        const sendMessage = function() {
-            const text = $input.val().trim();
-            if (!text) return;
+        chatList.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const item = e.target.closest('.telegram-chat-item');
+            if (!item) return;
+            e.preventDefault();
+            item.click();
+        });
 
+        const sendMessage = () => {
+            const text = input.value.trim();
+            if (!text) return;
             const chat = findChat(telegramState.activeChatId);
             if (!chat) return;
-
-            chat.messages.push({ type: 'sent', text: text });
-            $input.val('');
+            chat.messages.push({ type: 'sent', text });
+            input.value = '';
             renderMessages();
         };
 
-        $sendBtn.on('click', sendMessage);
-
-        $input.on('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
         renderChatList();
         renderMessages();
     }
 
-    // Cleanup on page unload
-    $(window).on('beforeunload', function() {
-        if (dateTimerId !== null) {
-            clearInterval(dateTimerId);
-            dateTimerId = null;
-        }
+    // --- Cleanup ---
+
+    window.addEventListener('beforeunload', () => {
+        if (dateTimerId !== null) clearInterval(dateTimerId);
     });
 
-    // Start the app
     init();
 });
