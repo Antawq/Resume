@@ -628,85 +628,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             })
             .catch(error => {
-                const isRateLimit = Boolean(error?.isRateLimit);
-                if (nameEl)      nameEl.textContent      = isRateLimit ? 'Лимит GitHub API' : 'Failed to load';
-                if (followers)   followers.textContent   = '';
-                if (reposList) {
-                    if (isRateLimit) {
-                        reposList.innerHTML = `<li><span>${GITHUB_RATE_LIMIT_MESSAGE}</span><br>
-                            <a href="https://github.com/${escapeHtml(username)}" target="_blank" rel="noopener noreferrer">Открыть профиль ${escapeHtml(username)}</a></li>`;
-                    } else {
-                        reposList.textContent = 'Failed to load repos.';
-                    }
-                }
-                if (readmeEl) readmeEl.textContent = isRateLimit ? GITHUB_RATE_LIMIT_MESSAGE : 'No README found.';
+                if (nameEl)    nameEl.textContent    = 'Failed to load';
+                if (followers) followers.textContent = '';
+                if (reposList) reposList.textContent = 'Failed to load repos.';
+                if (readmeEl)  readmeEl.textContent  = 'No README found.';
                 console.error('GitHub profile error:', error);
             });
     }
 
-    function refreshGitHubData(username) {
-        return Promise.all([
-            fetchGitHubUser(username),
-            fetchGitHubRepos(username).catch(e => { if (e?.isRateLimit) throw e; return []; }),
-            fetchUserReadme(username).catch(e  => { if (e?.isRateLimit) throw e; return null; })
-        ])
-        .then(([user, repos, readme]) => {
-            const payload = { user, repos, readme };
-            writeGitHubCache(username, payload);
-            return payload;
-        })
-        .catch(error => {
-            githubPromises.delete(username);
-            throw error;
-        });
-    }
+    // убрано: refreshGitHubData, fetchGitHubResource, fetchGitHubUser,
+    //         fetchGitHubRepos, fetchUserReadme — данные берутся из github-data.json
 
-    async function fetchGitHubResource(url, options = {}) {
-        const responseType = options.responseType || 'json';
-        try {
-            const response = await fetch(url, { headers: GITHUB_REQUEST_HEADERS });
-            if (response.status === 403) {
-                let message = 'GitHub API rate limit exceeded';
-                try { const body = await response.json(); if (body?.message) message = body.message; } catch (e) {}
-                const err = new Error(message);
-                err.isRateLimit = true;
-                err.status = 403;
-                throw err;
-            }
-            if (!response.ok) {
-                const text = await response.text().catch(() => '');
-                const err = new Error(text || response.statusText);
-                err.status = response.status;
-                throw err;
-            }
-            return responseType === 'text' ? response.text() : response.json();
-        } catch (error) {
-            if (error.isRateLimit) throw error;
-            console.error('GitHub fetch error:', url, error);
-            throw error;
-        }
-    }
-
-    const fetchGitHubUser  = username => fetchGitHubResource(`https://api.github.com/users/${username}`);
-    const fetchGitHubRepos = username => fetchGitHubResource(`https://api.github.com/users/${username}/repos?sort=updated&per_page=5`)
-        .then(repos => { if (!Array.isArray(repos)) throw new Error('Invalid repos'); return repos; });
-
-    async function fetchUserReadme(username) {
-        const paths = [
-            `https://raw.githubusercontent.com/${username}/${username}/main/README.md`,
-            `https://raw.githubusercontent.com/${username}/${username}/master/README.md`,
-            `https://raw.githubusercontent.com/${username}/profile/main/README.md`
-        ];
-        for (const path of paths) {
-            try {
-                const res = await fetch(path);
-                if (res.status === 403) { const e = new Error('rate limit'); e.isRateLimit = true; throw e; }
-                if (res.ok) return res.text();
-            } catch (e) {
-                if (e.isRateLimit) throw e;
-            }
-        }
-        throw new Error('README not found');
+    // placeholder чтобы не ломать структуру файла
+    void function unused() {
     }
 
     // --- Telegram ---
