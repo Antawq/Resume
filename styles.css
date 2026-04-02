@@ -794,7 +794,7 @@ button:focus-visible,
     margin-bottom: 15px;
 }
 
-/* Telegram */
+/* Телега */
 .telegram-window {
     display: flex;
     flex-direction: column;
@@ -921,7 +921,7 @@ button:focus-visible,
     background: var(--neon-purple);
 }
 
-/* Адаптив для десктопа */
+/* Адаптайв для десктопа */
 @media (min-width: 769px) {
     .file[data-type="projects"] {
         left: 80px;
@@ -937,7 +937,7 @@ button:focus-visible,
     }
 }
 
-/* Адаптив для планшетов */
+/* Адаптайв для планшетов */
 @media (max-width: 768px) {
     .desktop {
         padding: 40px 15px 100px 15px;
@@ -1009,13 +1009,14 @@ button:focus-visible,
     }
 }
 
-/* Адаптив для мобильных */
+/* Адаптайв для мобильных */
 @media (max-width: 480px) {
     .window {
         max-height: 450px;
     }
     .desktop {
         padding: 30px 10px 90px 10px;
+        background-position: 72% center;    
     }
     .file-icon {
         width: 70px;
