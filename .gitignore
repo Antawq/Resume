@@ -15,3 +15,7 @@ test.html
 # OS
 .DS_Store
 Thumbs.db
+
+# utils
+trash
+wallpapers
