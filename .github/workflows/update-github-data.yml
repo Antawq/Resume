@@ -37,7 +37,7 @@ jobs:
             'User-Agent': 'github-actions-data-updater'
           };
 
-          function get(url, raw = false) {
+          function get(url) {
             return new Promise((resolve, reject) => {
               https.get(url, { headers }, res => {
                 let data = '';
@@ -45,7 +45,7 @@ jobs:
                 res.on('end', () => {
                   if (res.statusCode === 404) { resolve(null); return; }
                   if (res.statusCode >= 400) { reject(new Error(`HTTP ${res.statusCode} for ${url}`)); return; }
-                  resolve(raw ? data : JSON.parse(data));
+                  resolve(JSON.parse(data));
                 });
               }).on('error', reject);
             });
@@ -54,7 +54,6 @@ jobs:
           async function fetchReadme(username) {
             for (const branch of ['main', 'master']) {
               const url = `https://raw.githubusercontent.com/${username}/${username}/${branch}/README.md`;
-              // raw.githubusercontent.com не требует токена
               const text = await new Promise(resolve => {
                 https.get(url, { headers: { 'User-Agent': 'github-actions-data-updater' } }, res => {
                   if (res.statusCode !== 200) { resolve(null); return; }
@@ -68,17 +67,44 @@ jobs:
             return null;
           }
 
+          function fetchBase64(url) {
+            return new Promise(resolve => {
+              https.get(url, { headers: { 'User-Agent': 'github-actions-data-updater' } }, res => {
+                if (res.statusCode !== 200) { resolve(null); return; }
+                const contentType = res.headers['content-type'] || 'image/svg+xml';
+                const chunks = [];
+                res.on('data', c => chunks.push(c));
+                res.on('end', () => {
+                  const b64 = Buffer.concat(chunks).toString('base64');
+                  resolve(`data:${contentType.split(';')[0]};base64,${b64}`);
+                });
+              }).on('error', () => resolve(null));
+            });
+          }
+
+          async function inlineImages(markdown) {
+            if (!markdown) return markdown;
+            const IMG_RE = /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
+            const matches = [...markdown.matchAll(IMG_RE)];
+            for (const [full, alt, url] of matches) {
+              try {
+                const b64 = await fetchBase64(url);
+                if (b64) markdown = markdown.replace(full, `![${alt}](${b64})`);
+              } catch (e) { /* оставить как есть */ }
+            }
+            return markdown;
+          }
+
           async function main() {
             const result = { updated_at: new Date().toISOString() };
 
             for (const username of PROFILES) {
               console.log(`Fetching ${username}...`);
-              const [user, repos, readme] = await Promise.all([
+              const [user, readme] = await Promise.all([
                 get(`https://api.github.com/users/${username}`),
-                get(`https://api.github.com/users/${username}/repos?sort=updated&per_page=5`),
                 fetchReadme(username)
               ]);
-              result[username] = { user, repos: repos ?? [], readme };
+              result[username] = { user, readme: await inlineImages(readme) };
             }
 
             fs.writeFileSync('github-data.json', JSON.stringify(result, null, 2));

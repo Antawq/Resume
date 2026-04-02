@@ -707,10 +707,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                     <div class="gh-right-column">
                         <div class="gh-readme" id="${prefix}-readme">Loading README...</div>
-                        <div class="gh-repos">
-                            <h3>Popular repositories</h3>
-                            <ul id="${prefix}-repos"></ul>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -718,41 +714,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function hydrateGitHubProfile({ username, prefix }) {
-    const avatar = document.getElementById(prefix + "-avatar");
-    const nameEl = document.getElementById(prefix + "-name");
+    const avatar    = document.getElementById(prefix + "-avatar");
+    const nameEl    = document.getElementById(prefix + "-name");
     const followers = document.getElementById(prefix + "-followers");
-    const reposList = document.getElementById(prefix + "-repos");
-    const readmeEl = document.getElementById(prefix + "-readme");
+    const readmeEl  = document.getElementById(prefix + "-readme");
 
     fetchGitHubData(username)
-      .then(({ user, repos, readme }) => {
+      .then(({ user, readme }) => {
         if (avatar && user) {
           avatar.src = user.avatar_url;
           avatar.alt = "Avatar " + user.login;
         }
         if (nameEl)
-          nameEl.textContent = user
-            ? user.name || user.login
-            : "Failed to load";
+          nameEl.textContent = user ? user.name || user.login : "Failed to load";
         if (followers && user)
           followers.textContent = `${user.followers} followers · ${user.following} following`;
-
-        if (reposList) {
-          if (repos?.length) {
-            reposList.innerHTML = repos
-              .map(
-                (repo) => `
-                            <li>
-                                <a href="${escapeHtml(repo.html_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(repo.name)}</a>
-                                ⭐ ${escapeHtml(String(repo.stargazers_count))}
-                            </li>
-                        `,
-              )
-              .join("");
-          } else {
-            reposList.textContent = "No public repositories.";
-          }
-        }
 
         if (readmeEl) {
           if (
@@ -767,10 +743,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       })
       .catch((error) => {
-        if (nameEl) nameEl.textContent = "Failed to load";
+        if (nameEl)    nameEl.textContent    = "Failed to load";
         if (followers) followers.textContent = "";
-        if (reposList) reposList.textContent = "Failed to load repos.";
-        if (readmeEl) readmeEl.textContent = "No README found.";
+        if (readmeEl)  readmeEl.textContent  = "No README found.";
         console.error("GitHub profile error:", error);
       });
   }
