@@ -5,8 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const CONSTANTS = {
         PADDING: 20,
         UPDATE_INTERVAL: 1000,
-        GITHUB_CACHE_TTL: 1000 * 60 * 30,
-        GITHUB_CACHE_PREFIX: 'github-profile-cache:',
         DRAG_THRESHOLD: 5
     };
 
@@ -43,14 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { username: 'Antawq',    prefix: 'gh-alt'  }
     ];
 
-    const GITHUB_RATE_LIMIT_MESSAGE = 'Превышен лимит GitHub API. Попробуйте снова через несколько минут или откройте профиль напрямую.';
-
-    const GITHUB_REQUEST_HEADERS = {
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
-    };
-
-    const githubPromises = new Map();
+    let githubDataPromise = null;
 
     const isLocalStorageAvailable = (() => {
         try {
@@ -560,43 +551,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- GitHub ---
 
-    const buildGitHubCacheKey = username => CONSTANTS.GITHUB_CACHE_PREFIX + username;
-
-    function readGitHubCache(username) {
-        if (!isLocalStorageAvailable) return null;
-        try {
-            const raw = localStorage.getItem(buildGitHubCacheKey(username));
-            if (!raw) return null;
-            const parsed = JSON.parse(raw);
-            if (!parsed?.timestamp || !parsed?.data) return null;
-            if (Date.now() - parsed.timestamp > CONSTANTS.GITHUB_CACHE_TTL) {
-                localStorage.removeItem(buildGitHubCacheKey(username));
-                return null;
-            }
-            return parsed.data;
-        } catch (e) {
-            console.warn('Не удалось прочитать кэш GitHub.', e);
-            return null;
-        }
-    }
-
-    function writeGitHubCache(username, data) {
-        if (!isLocalStorageAvailable) return;
-        try {
-            localStorage.setItem(buildGitHubCacheKey(username), JSON.stringify({ timestamp: Date.now(), data }));
-        } catch (e) {
-            console.warn('Не удалось записать кэш GitHub.', e);
-        }
-    }
-
     function fetchGitHubData(username) {
-        if (!githubPromises.has(username)) {
-            const cached = readGitHubCache(username);
-            githubPromises.set(username,
-                cached ? Promise.resolve(cached) : refreshGitHubData(username)
-            );
-        }
-        return githubPromises.get(username);
+        githubDataPromise ??= fetch('github-data.json')
+            .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+        return githubDataPromise.then(data => {
+            const profile = data[username];
+            if (!profile?.user) throw new Error('Profile not found: ' + username);
+            return profile;
+        });
     }
 
     function loadGitHubProfile() {

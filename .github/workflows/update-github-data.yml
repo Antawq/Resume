@@ -1,0 +1,94 @@
+name: Update GitHub Data
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # каждые 6 часов
+  workflow_dispatch:          # ручной запуск
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch GitHub profiles
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node - <<'EOF'
+          const https = require('https');
+          const fs    = require('fs');
+
+          const TOKEN    = process.env.GH_TOKEN;
+          const PROFILES = ['swid-yera', 'Antawq'];
+
+          const headers = {
+            'Authorization': `Bearer ${TOKEN}`,
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'github-actions-data-updater'
+          };
+
+          function get(url, raw = false) {
+            return new Promise((resolve, reject) => {
+              https.get(url, { headers }, res => {
+                let data = '';
+                res.on('data', c => data += c);
+                res.on('end', () => {
+                  if (res.statusCode === 404) { resolve(null); return; }
+                  if (res.statusCode >= 400) { reject(new Error(`HTTP ${res.statusCode} for ${url}`)); return; }
+                  resolve(raw ? data : JSON.parse(data));
+                });
+              }).on('error', reject);
+            });
+          }
+
+          async function fetchReadme(username) {
+            for (const branch of ['main', 'master']) {
+              const url = `https://raw.githubusercontent.com/${username}/${username}/${branch}/README.md`;
+              // raw.githubusercontent.com не требует токена
+              const text = await new Promise(resolve => {
+                https.get(url, { headers: { 'User-Agent': 'github-actions-data-updater' } }, res => {
+                  if (res.statusCode !== 200) { resolve(null); return; }
+                  let d = '';
+                  res.on('data', c => d += c);
+                  res.on('end', () => resolve(d));
+                }).on('error', () => resolve(null));
+              });
+              if (text) return text;
+            }
+            return null;
+          }
+
+          async function main() {
+            const result = { updated_at: new Date().toISOString() };
+
+            for (const username of PROFILES) {
+              console.log(`Fetching ${username}...`);
+              const [user, repos, readme] = await Promise.all([
+                get(`https://api.github.com/users/${username}`),
+                get(`https://api.github.com/users/${username}/repos?sort=updated&per_page=5`),
+                fetchReadme(username)
+              ]);
+              result[username] = { user, repos: repos ?? [], readme };
+            }
+
+            fs.writeFileSync('github-data.json', JSON.stringify(result, null, 2));
+            console.log('github-data.json updated.');
+          }
+
+          main().catch(err => { console.error(err); process.exit(1); });
+          EOF
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add github-data.json
+          git diff --staged --quiet || git commit -m "chore: update github-data.json [skip ci]"
+          git push
