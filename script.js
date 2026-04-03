@@ -169,6 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Init ---
 
   function init() {
+    setupStartupOverlay();
     applyBrightness(currentSettings.brightness);
     applyTheme(currentSettings.theme);
     setupDateTime();
@@ -176,6 +177,19 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDockItems();
     setupWindowDragging();
     setupWindowClosing();
+  }
+
+  function setupStartupOverlay() {
+    const startupOverlay = document.getElementById("startup-overlay");
+    if (!startupOverlay) return;
+
+    startupOverlay.addEventListener(
+      "animationend",
+      () => {
+        startupOverlay.remove();
+      },
+      { once: true },
+    );
   }
 
   // --- DateTime ---

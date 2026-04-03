@@ -34,6 +34,23 @@ body {
     touch-action: manipulation;
 }
 
+#startup-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    opacity: 1;
+    pointer-events: none;
+    z-index: 9999;
+    animation: startup-fadeout 100ms linear 500ms forwards;
+}
+
+@keyframes startup-fadeout {
+    to {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
 #brightness-overlay {
     position: fixed;
     inset: 0;
