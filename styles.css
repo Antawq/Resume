@@ -41,7 +41,7 @@ body {
     opacity: 1;
     pointer-events: none;
     z-index: 9999;
-    animation: startup-fadeout 100ms linear 670ms forwards;
+    animation: startup-fadeout 200ms linear 500ms forwards;
 }
 
 @keyframes startup-fadeout {
