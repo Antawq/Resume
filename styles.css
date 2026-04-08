@@ -134,7 +134,7 @@ button:focus-visible,
     position: fixed;
     top: 0;
     left: 0;
-    background: url(photos/wppr.png) center center / cover no-repeat;
+    background: url(photos/wppr.webp) center center / cover no-repeat;
     z-index: 10;
     overflow: hidden;
     touch-action: none;
@@ -143,7 +143,7 @@ button:focus-visible,
 
 @media (min-width: 1024px) {
     .desktop {
-        background: url(photos/wppr_12.png) center center / cover no-repeat;
+        background: url(photos/wppr_12.webp) center center / cover no-repeat;
     }
 }
 
