@@ -5,6 +5,10 @@ document.addEventListener("DOMContentLoaded", () => {
     PADDING: 20,
     UPDATE_INTERVAL: 1000,
     DRAG_THRESHOLD: 5,
+    DESKTOP_PADDING_TOP: 50,
+    DESKTOP_PADDING_BOTTOM: 80,
+    OPEN_DEBOUNCE_MS: 100,
+    BRIGHTNESS_MAX: 70,
   };
 
   // DOM elements
@@ -222,7 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="settings-window">
                 <div class="settings-section">
                     <label class="settings-label" for="brightness-slider">Brightness</label>
-                    <input type="range" id="brightness-slider" class="settings-slider" min="0" max="70" value="${currentSettings.brightness}">
+                    <input type="range" id="brightness-slider" class="settings-slider" min="0" max="${CONSTANTS.BRIGHTNESS_MAX}" value="${currentSettings.brightness}">
                 </div>
                 <div class="settings-section">
                     <span class="settings-label">Theme</span>
@@ -304,8 +308,8 @@ document.addEventListener("DOMContentLoaded", () => {
         hasMoved = true;
         const maxX = window.innerWidth - file.offsetWidth - CONSTANTS.PADDING;
         const maxY =
-          window.innerHeight - file.offsetHeight - CONSTANTS.PADDING - 80;
-        const minY = CONSTANTS.PADDING + 50;
+          window.innerHeight - file.offsetHeight - CONSTANTS.PADDING - CONSTANTS.DESKTOP_PADDING_BOTTOM;
+        const minY = CONSTANTS.PADDING + CONSTANTS.DESKTOP_PADDING_TOP;
 
         file.style.left =
           Math.max(CONSTANTS.PADDING, Math.min(e.clientX - offsetX, maxX)) +
@@ -320,7 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
           openWindow(file.dataset.type);
           setTimeout(() => {
             opening = false;
-          }, 100);
+          }, CONSTANTS.OPEN_DEBOUNCE_MS);
         }
         if (isDragging) file.classList.remove("dragging");
         isDragging = false;

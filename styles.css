@@ -1,6 +1,7 @@
 /* Переменные */
 :root {
     --code-bg: #1E1E1E;
+    --bg-body: #0f0f12;
     --neon-blue: #00DDEB;
     --neon-purple: #BB86FC;
     --neon-green: #03DAC6;
@@ -14,6 +15,19 @@
     --dock-icon-size: 50px;
     --file-icon-size: 100px;
     --spacing: 20px;
+    --desktop-padding-top: 50px;
+    --desktop-padding-bottom: 80px;
+    --window-header-height: 50px;
+    /* z-index scale */
+    --z-desktop: 10;
+    --z-brightness: 20;
+    --z-file: 20;
+    --z-file-dragging: 30;
+    --z-menubar: 100;
+    --z-dock: 100;
+    --z-window: 1000;
+    --z-arrow: 1001;
+    --z-startup: 9999;
 }
 
 * {
@@ -26,7 +40,7 @@
 }
 
 body {
-    background: #0f0f12;
+    background: var(--bg-body);
     height: 100vh;
     width: 100vw;
     overflow: hidden;
@@ -40,7 +54,7 @@ body {
     background: #000;
     opacity: 1;
     pointer-events: none;
-    z-index: 9999;
+    z-index: var(--z-startup);
     animation: startup-fadeout 200ms linear 500ms forwards;
 }
 
@@ -57,7 +71,7 @@ body {
     background: #000;
     opacity: 0;
     pointer-events: none;
-    z-index: 20;
+    z-index: var(--z-brightness);
     transition: opacity 0.15s ease;
 }
 
@@ -130,12 +144,12 @@ button:focus-visible,
 .desktop {
     width: 100%;
     height: 100%;
-    padding: 50px var(--spacing) 80px var(--spacing);
+    padding: var(--desktop-padding-top) var(--spacing) var(--desktop-padding-bottom) var(--spacing);
     position: fixed;
     top: 0;
     left: 0;
     background: url(photos/wppr.webp) center center / cover no-repeat;
-    z-index: 10;
+    z-index: var(--z-desktop);
     overflow: hidden;
     touch-action: none;
     isolation: isolate;
@@ -175,7 +189,7 @@ button:focus-visible,
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 100;
+    z-index: var(--z-menubar);
     color: var(--text-light);
     font-size: 14px;
     font-weight: 500;
@@ -195,7 +209,7 @@ button:focus-visible,
     text-align: center;
     cursor: pointer;
     transition: transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
-    z-index: 20;
+    z-index: var(--z-file);
     touch-action: none;
     will-change: left, top;
     position: absolute;
@@ -204,7 +218,7 @@ button:focus-visible,
 .file.dragging {
     opacity: 0.9;
     transform: scale(1.1);
-    z-index: 30;
+    z-index: var(--z-file-dragging);
 }
 
 .file-icon {
@@ -263,7 +277,7 @@ button:focus-visible,
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     overflow: hidden;
-    z-index: 1000;
+    z-index: var(--z-window);
     display: none;
     pointer-events: none;
     --window-translate-x: -50%;
@@ -335,7 +349,7 @@ button:focus-visible,
 
 .window-content {
     padding: var(--spacing);
-    height: calc(100% - 50px);
+    height: calc(100% - var(--window-header-height));
     color: var(--text-light);
     font-size: 16px;
     line-height: 1.6;
@@ -545,7 +559,7 @@ button:focus-visible,
     align-items: center;
     cursor: pointer;
     border-radius: 50%;
-    z-index: 1001;
+    z-index: var(--z-arrow);
     transition: var(--transition);
     border: none;
 }
@@ -580,7 +594,7 @@ button:focus-visible,
     display: flex;
     gap: 15px;
     box-shadow: var(--shadow);
-    z-index: 100;
+    z-index: var(--z-dock);
     border: 3px solid rgba(255, 255, 255, 0.1);
 }
 
