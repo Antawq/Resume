@@ -18,6 +18,10 @@
     --desktop-padding-top: 50px;
     --desktop-padding-bottom: 80px;
     --window-header-height: 50px;
+    --window-control-size: 14px;
+    --window-control-color: #ff5555;
+    --window-control-expanded-width: 40px;
+    --window-control-expanded-radius: 7px;
     /* z-index scale */
     --z-desktop: 10;
     --z-brightness: 20;
@@ -316,27 +320,24 @@ button:focus-visible,
 }
 
 .window-control {
-    width: 14px;
-    height: 14px;
+    width: var(--window-control-size);
+    height: var(--window-control-size);
     border-radius: 50%;
-    background: #ff5555;
+    background: var(--window-control-color);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: var(--transition);
+    transition: width 0.3s ease, border-radius 0.3s ease, filter 0.2s ease;
     cursor: pointer;
     border: none;
     padding: 0;
-}
-
-.close-icon {
-    width: 8px;
-    height: 8px;
+    transform-origin: left center;
 }
 
 .window-control:hover {
-    transform: scale(1.2);
-    filter: brightness(1.2);
+    width: var(--window-control-expanded-width);
+    border-radius: var(--window-control-expanded-radius);
+    filter: brightness(1.15);
 }
 
 .window-title {
@@ -1064,12 +1065,8 @@ button:focus-visible,
         font-size: 13px;
     }
     .window-control {
-        width: 12px;
-        height: 12px;
-    }
-    .close-icon {
-        width: 7px;
-        height: 7px;
+        --window-control-size: 12px;
+        --window-control-expanded-width: 34px;
     }
     .call-item img {
         width: 35px;
