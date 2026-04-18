@@ -17,7 +17,8 @@
     --spacing: 20px;
     --desktop-padding-top: 50px;
     --desktop-padding-bottom: 80px;
-    --window-header-height: 50px;
+    --window-header-height: 47px;
+    --window-content-padding: 6px;
     --window-control-size: 14px;
     --window-control-color: #ff5555;
     --window-control-expanded-width: 40px;
@@ -274,8 +275,9 @@ button:focus-visible,
     position: absolute;
     top: 50px;
     left: 50%;
-    width: 800px;
-    height: 600px;
+    width: 1040px;
+    height: 720px;
+    max-width: 95vw;
     max-height: 90vh;
     background: var(--code-bg);
     border-radius: var(--border-radius);
@@ -305,11 +307,11 @@ button:focus-visible,
 
 .window-header {
     background: var(--code-bg);
-    padding: 12px var(--spacing);
+    padding: 10px var(--spacing);
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     cursor: move;
     touch-action: none;
 }
@@ -349,7 +351,7 @@ button:focus-visible,
 }
 
 .window-content {
-    padding: var(--spacing);
+    padding: var(--window-content-padding);
     height: calc(100% - var(--window-header-height));
     color: var(--text-light);
     font-size: 16px;
@@ -672,6 +674,7 @@ button:focus-visible,
     height: 100%;
     overflow-y: auto;
     background: #0d1117;
+    border-radius: calc(var(--border-radius) - var(--window-content-padding));
 }
 
 .gh-body {
@@ -763,8 +766,8 @@ button:focus-visible,
 }
 
 .gh-profiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 24px;
 }
 
@@ -982,7 +985,6 @@ button:focus-visible,
         max-height: 500px;
     }
     .window-content {
-        padding: 12px;
         font-size: 14px;
     }
     .text-content p {
@@ -1038,7 +1040,6 @@ button:focus-visible,
         padding: 4px 8px;
     }
     .window-content {
-        padding: 10px;
         font-size: 13px;
     }
     .dock {

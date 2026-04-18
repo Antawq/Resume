@@ -11,6 +11,11 @@ document.addEventListener("DOMContentLoaded", () => {
     BRIGHTNESS_MAX: 70,
   };
 
+  document.addEventListener("error", (e) => {
+    const t = e.target;
+    if (t && t.tagName === "IMG" && t.getAttribute("src")) t.style.display = "none";
+  }, true);
+
   // DOM elements
   const files = document.querySelectorAll(".file");
   const windowEl = document.getElementById("window");

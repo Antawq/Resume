@@ -19,3 +19,6 @@ Thumbs.db
 # utils
 trash
 wallpapers
+*.asc
+private.asc
+public.asc
