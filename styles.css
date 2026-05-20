@@ -153,16 +153,27 @@ button:focus-visible,
     position: fixed;
     top: 0;
     left: 0;
-    background: url(photos/wppr.webp) center center / cover no-repeat;
+    background-image: url(photos/wppr-phone.webp);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
     z-index: var(--z-desktop);
     overflow: hidden;
     touch-action: none;
     isolation: isolate;
 }
 
+/* Десктоп: обычная плотность экрана — лёгкий сжатый фон */
 @media (min-width: 1024px) {
     .desktop {
-        background: url(photos/wppr_12.webp) center center / cover no-repeat;
+        background-image: url(photos/wppr-tv.webp);
+    }
+}
+
+/* Десктоп: retina/высокая плотность — фон без потерь */
+@media (min-width: 1024px) and (min-resolution: 2dppx) {
+    .desktop {
+        background-image: url(photos/wppr-retina.webp);
     }
 }
 
