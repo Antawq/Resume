@@ -46,19 +46,29 @@
         </div>
     </main>
 
-    <!-- Окно -->
-    <div class="window" id="window" role="dialog" aria-modal="true" aria-labelledby="window-title">
-        <div class="window-header">
-            <div class="window-controls">
-                <button class="window-control close" id="close-window" aria-label="Close window" type="button">
-                </button>
+    <!-- Окно — шаблон, клонируется JS на каждое открытое приложение -->
+    <template id="window-template">
+        <div class="window" role="dialog">
+            <div class="window-header">
+                <div class="window-controls">
+                    <button class="window-control close" aria-label="Close window" type="button">
+                    </button>
+                </div>
+                <span class="window-title">Window</span>
             </div>
-            <span class="window-title" id="window-title">Desktop</span>
+            <div class="window-content" role="document">
+                <!-- Рендер JS для содержимого окна -->
+            </div>
+            <div class="window-resize-handle n" data-dir="n" aria-hidden="true"></div>
+            <div class="window-resize-handle s" data-dir="s" aria-hidden="true"></div>
+            <div class="window-resize-handle e" data-dir="e" aria-hidden="true"></div>
+            <div class="window-resize-handle w" data-dir="w" aria-hidden="true"></div>
+            <div class="window-resize-handle ne" data-dir="ne" aria-hidden="true"></div>
+            <div class="window-resize-handle nw" data-dir="nw" aria-hidden="true"></div>
+            <div class="window-resize-handle se" data-dir="se" aria-hidden="true"></div>
+            <div class="window-resize-handle sw" data-dir="sw" aria-hidden="true"></div>
         </div>
-        <div class="window-content" id="window-content" role="document">
-            <!-- Рендер JS для содержимого окна -->
-        </div>
-    </div>
+    </template>
 
     <!-- Dock -->
     <nav class="dock" role="navigation" aria-label="Application dock">

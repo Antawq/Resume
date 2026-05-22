@@ -18,20 +18,20 @@
 }
 
 @font-face {
-    font-family: 'Alumni Sans Pinstripe';
+    font-family: 'Alumni Sans';
     font-style: normal;
-    font-weight: 400;
+    font-weight: 400 900;
     font-display: swap;
-    src: url(fonts/alumni-sans-pinstripe-latin.woff2) format('woff2');
+    src: url(fonts/alumni-sans-latin.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
-    font-family: 'Alumni Sans Pinstripe';
+    font-family: 'Alumni Sans';
     font-style: normal;
-    font-weight: 400;
+    font-weight: 400 900;
     font-display: swap;
-    src: url(fonts/alumni-sans-pinstripe-cyrillic.woff2) format('woff2');
+    src: url(fonts/alumni-sans-cyrillic.woff2) format('woff2');
     unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
@@ -47,8 +47,8 @@
     --border-radius: 12px;
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --font: 'Source Code Pro', monospace;
-    --clock-font: 'Alumni Sans Pinstripe', cursive;
-    --menu-height: 28px;
+    --clock-font: 'Alumni Sans', sans-serif;
+    --menu-height: 42px;
     --dock-icon-size: 50px;
     --file-icon-size: 100px;
     --spacing: 20px;
@@ -60,6 +60,8 @@
     --window-control-color: #ff5555;
     --window-control-expanded-width: 40px;
     --window-control-expanded-radius: 7px;
+    --window-resize-edge: 6px;
+    --window-resize-corner: 16px;
     /* z-index scale */
     --z-desktop: 10;
     --z-brightness: 20;
@@ -253,6 +255,8 @@ button:focus-visible,
     padding: 4px 12px;
     border-radius: 6px;
     font-family: var(--clock-font);
+    font-size: 24px;
+    font-weight: 700;
 }
 
 /* Файлы на рабочем столе */
@@ -322,8 +326,8 @@ button:focus-visible,
 /* Окна */
 .window {
     position: absolute;
-    top: 50px;
-    left: 50%;
+    top: 0;
+    left: 0;
     width: 1040px;
     height: 720px;
     max-width: 95vw;
@@ -333,16 +337,7 @@ button:focus-visible,
     box-shadow: var(--shadow);
     overflow: hidden;
     z-index: var(--z-window);
-    display: none;
-    pointer-events: none;
-    --window-translate-x: -50%;
-    transform: translateX(var(--window-translate-x));
     touch-action: none;
-}
-
-.window.is-visible {
-    display: block;
-    pointer-events: auto;
     animation: window-open 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
@@ -350,8 +345,76 @@ button:focus-visible,
     animation: window-minimize 0.3s ease forwards;
 }
 
-.window.is-dragging {
-    --window-translate-x: 0;
+/* Зоны изменения размера окна (невидимые, как в macOS) */
+.window-resize-handle {
+    position: absolute;
+    z-index: 2;
+    touch-action: none;
+}
+
+.window-resize-handle.n {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--window-resize-edge);
+    cursor: ns-resize;
+}
+
+.window-resize-handle.s {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--window-resize-edge);
+    cursor: ns-resize;
+}
+
+.window-resize-handle.e {
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: var(--window-resize-edge);
+    cursor: ew-resize;
+}
+
+.window-resize-handle.w {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--window-resize-edge);
+    cursor: ew-resize;
+}
+
+.window-resize-handle.ne,
+.window-resize-handle.nw,
+.window-resize-handle.se,
+.window-resize-handle.sw {
+    width: var(--window-resize-corner);
+    height: var(--window-resize-corner);
+    z-index: 3;
+}
+
+.window-resize-handle.ne {
+    top: 0;
+    right: 0;
+    cursor: nesw-resize;
+}
+
+.window-resize-handle.nw {
+    top: 0;
+    left: 0;
+    cursor: nwse-resize;
+}
+
+.window-resize-handle.se {
+    bottom: 0;
+    right: 0;
+    cursor: nwse-resize;
+}
+
+.window-resize-handle.sw {
+    bottom: 0;
+    left: 0;
+    cursor: nesw-resize;
 }
 
 .window-header {
@@ -640,14 +703,13 @@ button:focus-visible,
     bottom: 15px;
     left: 50%;
     transform: translateX(-50%);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(3px);
     border-radius: 14px;
     padding: 10px;
     display: flex;
     gap: 15px;
     box-shadow: var(--shadow);
     z-index: var(--z-dock);
-    border: 3px solid rgba(255, 255, 255, 0.1);
 }
 
 .dock-item {
@@ -682,8 +744,9 @@ button:focus-visible,
     bottom: 65px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--code-bg);
+    backdrop-filter: blur(3px);
     color: var(--text-light);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
     padding: 6px 12px;
     border-radius: 6px;
     font-size: 12px;
@@ -697,18 +760,18 @@ button:focus-visible,
 /* Анимации */
 @keyframes window-open {
     from {
-        transform: translateX(var(--window-translate-x)) scale(0.9) translateY(20px);
+        transform: scale(0.9) translateY(20px);
         opacity: 0;
     }
     to {
-        transform: translateX(var(--window-translate-x)) scale(1) translateY(0);
+        transform: scale(1) translateY(0);
         opacity: 1;
     }
 }
 
 @keyframes window-minimize {
     to {
-        transform: translateX(var(--window-translate-x)) scale(0.3);
+        transform: scale(0.3);
         opacity: 0;
     }
 }
@@ -1053,7 +1116,10 @@ button:focus-visible,
     }
     .menu-bar {
         font-size: 13px;
-        height: 24px;
+        height: 36px;
+    }
+    .datetime {
+        font-size: 20px;
     }
     .arrow {
         width: 30px;
@@ -1068,6 +1134,9 @@ button:focus-visible,
     }
     .telegram-chat-list {
         width: 100px;
+    }
+    .window-resize-handle {
+        display: none;
     }
 }
 
@@ -1101,7 +1170,10 @@ button:focus-visible,
     }
     .menu-bar {
         font-size: 12px;
-        height: 22px;
+        height: 32px;
+    }
+    .datetime {
+        font-size: 17px;
     }
     .arrow {
         width: 28px;

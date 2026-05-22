@@ -9,6 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
     DESKTOP_PADDING_BOTTOM: 80,
     OPEN_DEBOUNCE_MS: 100,
     BRIGHTNESS_MAX: 70,
+    WINDOW_DRAG_MARGIN: 80,
+    WINDOW_CASCADE_STEP: 32,
+    WINDOW_MIN_WIDTH: 320,
+    WINDOW_MIN_HEIGHT: 220,
   };
 
   document.addEventListener("error", (e) => {
@@ -18,9 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // DOM elements
   const files = document.querySelectorAll(".file");
-  const windowEl = document.getElementById("window");
-  const windowContent = document.getElementById("window-content");
-  const closeButton = document.getElementById("close-window");
+  const windowTemplate = document.getElementById("window-template");
   const datetimeEl = document.getElementById("datetime");
 
   const DATE_FORMATTERS = {
@@ -184,8 +186,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDateTime();
     setupFileDragging();
     setupDockItems();
-    setupWindowDragging();
-    setupWindowClosing();
   }
 
   function setupStartupOverlay() {
@@ -226,7 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Settings ---
 
-  function renderSettings() {
+  function renderSettings(windowContent) {
     windowContent.innerHTML = `
             <div class="settings-window">
                 <div class="settings-section">
@@ -368,106 +368,196 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Window Dragging — Pointer Events ---
+  // --- Window Manager ---
 
-  function setupWindowDragging() {
-    const header = windowEl.querySelector(".window-header");
-    let isDragging = false;
+  const openWindows = new Map(); // type -> { el, contentEl, type }
+  let topZ = 1000;
+
+  const WINDOW_TITLES = {
+    projects: "Projects",
+    photos: "Photos",
+    text: "About.txt",
+    calls: "Recent Calls",
+    github: "GitHub",
+    telegram: "Telegram",
+    instagram: "Instagram",
+    notes: "Notes",
+    trash: "Trash",
+    settings: "Settings",
+  };
+
+  function raiseWindow(win) {
+    win.el.style.zIndex = ++topZ;
+  }
+
+  function makeDraggable(win) {
+    const header = win.el.querySelector(".window-header");
+    let dragging = false;
     let startX = 0,
       startY = 0,
       initialX = 0,
       initialY = 0;
 
     header.addEventListener("pointerdown", (e) => {
-      if (!windowEl.classList.contains("is-visible")) return;
       if (e.target.closest(".window-control")) return;
       e.preventDefault();
       header.setPointerCapture(e.pointerId);
-
       startX = e.clientX;
       startY = e.clientY;
-      const rect = windowEl.getBoundingClientRect();
-      windowEl.classList.add("is-dragging");
-      windowEl.style.left = rect.left + "px";
-      windowEl.style.top = rect.top + "px";
+      const rect = win.el.getBoundingClientRect();
       initialX = rect.left;
       initialY = rect.top;
-      isDragging = true;
+      dragging = true;
     });
 
     header.addEventListener("pointermove", (e) => {
-      if (!isDragging) return;
+      if (!dragging) return;
       e.preventDefault();
-      const maxX = window.innerWidth - windowEl.offsetWidth;
-      const maxY = window.innerHeight - windowEl.offsetHeight;
-      windowEl.style.left =
-        Math.max(
-          0,
-          Math.min(initialX + e.clientX - startX, Math.max(0, maxX)),
-        ) + "px";
-      windowEl.style.top =
-        Math.max(
-          0,
-          Math.min(initialY + e.clientY - startY, Math.max(0, maxY)),
-        ) + "px";
+      const margin = CONSTANTS.WINDOW_DRAG_MARGIN;
+      const minX = margin - win.el.offsetWidth;
+      const maxX = window.innerWidth - margin;
+      const maxY = window.innerHeight - margin;
+      win.el.style.left =
+        Math.max(minX, Math.min(initialX + e.clientX - startX, maxX)) + "px";
+      win.el.style.top =
+        Math.max(0, Math.min(initialY + e.clientY - startY, maxY)) + "px";
     });
 
-    header.addEventListener("pointerup", () => {
-      isDragging = false;
-    });
-    header.addEventListener("pointercancel", () => {
-      isDragging = false;
-    });
+    const endDrag = () => {
+      dragging = false;
+    };
+    header.addEventListener("pointerup", endDrag);
+    header.addEventListener("pointercancel", endDrag);
   }
 
-  // --- Window Closing ---
+  function makeResizable(win) {
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+    let resizing = false;
+    let dir = "";
+    let startX = 0,
+      startY = 0;
+    let initialW = 0,
+      initialH = 0,
+      initialLeft = 0,
+      initialTop = 0;
 
-  function setupWindowClosing() {
-    let closingAnimationHandler = null;
+    win.el.querySelectorAll(".window-resize-handle").forEach((handle) => {
+      handle.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        dir = handle.dataset.dir;
+        resizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = win.el.getBoundingClientRect();
+        initialW = rect.width;
+        initialH = rect.height;
+        initialLeft = rect.left;
+        initialTop = rect.top;
+        // С первого ресайза размер окна полностью контролирует JS.
+        win.el.style.maxWidth = "none";
+        win.el.style.maxHeight = "none";
+      });
 
-    const resetWindowPosition = () => {
-      windowEl.classList.remove("is-dragging");
-      windowEl.style.left = "";
-      windowEl.style.top = "";
-    };
+      handle.addEventListener("pointermove", (e) => {
+        if (!resizing || !handle.hasPointerCapture(e.pointerId)) return;
+        e.preventDefault();
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const minW = CONSTANTS.WINDOW_MIN_WIDTH;
+        const minH = CONSTANTS.WINDOW_MIN_HEIGHT;
 
-    const closeWindow = () => {
-      if (
-        !windowEl.classList.contains("is-visible") ||
-        windowEl.classList.contains("is-closing")
-      )
-        return;
+        let w = initialW,
+          h = initialH,
+          left = initialLeft,
+          top = initialTop;
 
-      if (closingAnimationHandler) {
-        windowEl.removeEventListener("animationend", closingAnimationHandler);
-        closingAnimationHandler = null;
-      }
+        if (dir.includes("e")) {
+          w = clamp(initialW + dx, minW, window.innerWidth - initialLeft);
+        } else if (dir.includes("w")) {
+          w = clamp(initialW - dx, minW, initialLeft + initialW);
+          left = initialLeft + initialW - w;
+        }
+        if (dir.includes("s")) {
+          h = clamp(initialH + dy, minH, window.innerHeight - initialTop);
+        } else if (dir.includes("n")) {
+          h = clamp(initialH - dy, minH, initialTop + initialH);
+          top = initialTop + initialH - h;
+        }
 
-      windowEl.classList.add("is-closing");
+        win.el.style.width = w + "px";
+        win.el.style.height = h + "px";
+        win.el.style.left = left + "px";
+        win.el.style.top = top + "px";
+      });
 
-      closingAnimationHandler = (event) => {
-        if (event.animationName !== "window-minimize") return;
-        windowEl.classList.remove("is-visible", "is-closing");
-        windowContent.innerHTML = "";
-        resetWindowPosition();
-        windowEl.removeEventListener("animationend", closingAnimationHandler);
-        closingAnimationHandler = null;
+      const endResize = () => {
+        resizing = false;
+        dir = "";
       };
-
-      windowEl.addEventListener("animationend", closingAnimationHandler);
-    };
-
-    closeButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      closeWindow();
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && windowEl.classList.contains("is-visible")) {
-        closeWindow();
-      }
+      handle.addEventListener("pointerup", endResize);
+      handle.addEventListener("pointercancel", endResize);
     });
   }
+
+  function closeWindow(win) {
+    if (win.el.classList.contains("is-closing")) return;
+    win.el.classList.add("is-closing");
+    const onEnd = (event) => {
+      if (event.animationName !== "window-minimize") return;
+      win.el.removeEventListener("animationend", onEnd);
+      win.el.remove();
+      openWindows.delete(win.type);
+    };
+    win.el.addEventListener("animationend", onEnd);
+  }
+
+  function createWindow(type) {
+    const el = windowTemplate.content.firstElementChild.cloneNode(true);
+    const contentEl = el.querySelector(".window-content");
+    const win = { el, contentEl, type };
+    const title = WINDOW_TITLES[type] || type;
+
+    el.querySelector(".window-title").textContent = title;
+    el.setAttribute("aria-label", title);
+
+    el.addEventListener("pointerdown", () => raiseWindow(win));
+    el.querySelector(".window-control.close").addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeWindow(win);
+    });
+    makeDraggable(win);
+    makeResizable(win);
+
+    document.body.appendChild(el);
+
+    const step = CONSTANTS.WINDOW_CASCADE_STEP;
+    const slot = openWindows.size % 6;
+    let left = 60 + slot * step;
+    let top = 60 + slot * step;
+    left = Math.min(left, Math.max(20, window.innerWidth - el.offsetWidth - 20));
+    top = Math.min(top, Math.max(20, window.innerHeight - el.offsetHeight - 20));
+    el.style.left = left + "px";
+    el.style.top = top + "px";
+
+    openWindows.set(type, win);
+    raiseWindow(win);
+    return win;
+  }
+
+  function closeTopWindow() {
+    let top = null;
+    for (const win of openWindows.values()) {
+      if (!top || Number(win.el.style.zIndex) >= Number(top.el.style.zIndex)) {
+        top = win;
+      }
+    }
+    if (top) closeWindow(top);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeTopWindow();
+  });
 
   // --- Open Window ---
 
@@ -490,57 +580,60 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const WINDOW_RENDER_STRATEGIES = {
-    photos: (index) => renderFolderContent("photos", index),
-    projects: (index) => {
-      windowContent.innerHTML =
+    photos: (contentEl, index) => renderFolderContent(contentEl, "photos", index),
+    projects: (contentEl, index) => {
+      contentEl.innerHTML =
         '<div class="text-content"><p>Loading...</p></div>';
       loadProjects()
-        .then(() => renderFolderContent("projects", index))
+        .then(() => renderFolderContent(contentEl, "projects", index))
         .catch(() => {
-          windowContent.innerHTML =
+          contentEl.innerHTML =
             '<div class="folder-content"><p>Не удалось загрузить проекты.</p></div>';
         });
     },
-    trash: (index) => renderFolderContent("trash", index),
-    text: () => renderTextFile(),
-    calls: () => renderCalls(),
-    notes: () => renderNotes(),
-    github: () => loadGitHubProfile(),
-    telegram: () => renderTelegram(),
-    instagram: () => renderPlaceholder("Instagram"),
-    settings: () => renderSettings(),
+    trash: (contentEl, index) => renderFolderContent(contentEl, "trash", index),
+    text: (contentEl) => renderTextFile(contentEl),
+    calls: (contentEl) => renderCalls(contentEl),
+    notes: (contentEl) => renderNotes(contentEl),
+    github: (contentEl) => loadGitHubProfile(contentEl),
+    telegram: (contentEl) => renderTelegram(contentEl),
+    instagram: (contentEl) => renderPlaceholder(contentEl, "Instagram"),
+    settings: (contentEl) => renderSettings(contentEl),
   };
 
   function openWindow(type, fileIndex) {
     if (!type) return;
+    const render = WINDOW_RENDER_STRATEGIES[type];
     try {
-      const wasHidden = !windowEl.classList.contains("is-visible");
-      if (wasHidden) {
-        windowEl.classList.remove("is-dragging");
-        windowEl.style.left = "";
-        windowEl.style.top = "";
+      let win = openWindows.get(type);
+      if (win) {
+        win.el.classList.remove("is-closing");
+        raiseWindow(win);
+        if (Number.isInteger(fileIndex) && render) {
+          render(win.contentEl, fileIndex);
+        }
+        return;
       }
-      windowEl.classList.remove("is-closing");
-      windowEl.classList.add("is-visible");
-      windowContent.innerHTML = "";
-
-      const render = WINDOW_RENDER_STRATEGIES[type];
+      win = createWindow(type);
       if (render) {
-        render(fileIndex);
+        render(win.contentEl, fileIndex);
       } else {
         console.warn("No renderer for window type:", type);
-        renderPlaceholder(type);
+        renderPlaceholder(win.contentEl, type);
       }
     } catch (error) {
       console.error("Error opening window:", type, error);
-      windowContent.innerHTML =
-        '<div class="error-content"><p>Не удалось открыть содержимое.</p></div>';
+      const win = openWindows.get(type);
+      if (win) {
+        win.contentEl.innerHTML =
+          '<div class="error-content"><p>Не удалось открыть содержимое.</p></div>';
+      }
     }
   }
 
   // --- Rendering ---
 
-  function renderPlaceholder(name) {
+  function renderPlaceholder(windowContent, name) {
     windowContent.innerHTML = `
             <div class="text-content">
                 <h2>${escapeHtml(name)}</h2>
@@ -549,7 +642,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
   }
 
-  function renderFolder(type) {
+  function renderFolder(windowContent, type) {
     const items = folderContents[type] || [];
     if (!items.length) {
       windowContent.innerHTML =
@@ -596,7 +689,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function renderFolderContent(type, fileIndex) {
+  function renderFolderContent(windowContent, type, fileIndex) {
     const items = folderContents[type] || [];
     if (!items.length) {
       windowContent.innerHTML =
@@ -604,13 +697,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     if (Number.isInteger(fileIndex) && items[fileIndex]) {
-      renderGallery(type, fileIndex);
+      renderGallery(windowContent, type, fileIndex);
     } else {
-      renderFolder(type);
+      renderFolder(windowContent, type);
     }
   }
 
-  function renderTextFile() {
+  function renderTextFile(windowContent) {
     windowContent.innerHTML = `
             <div class="text-content">
                 <h2>About</h2>
@@ -620,17 +713,17 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
   }
 
-  function renderCalls() {
+  function renderCalls(windowContent) {
     windowContent.innerHTML =
       '<div class="call-log"><p>No recent calls</p></div>';
   }
 
-  function renderNotes() {
+  function renderNotes(windowContent) {
     windowContent.innerHTML =
       '<textarea class="notes-area" placeholder="Your notes..." aria-label="Notes textarea"></textarea>';
   }
 
-  function renderGallery(type, startIndex) {
+  function renderGallery(windowContent, type, startIndex) {
     startIndex = startIndex || 0;
     const items = folderContents[type] || [];
     if (!items.length) return;
@@ -708,7 +801,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function loadGitHubProfile() {
+  function loadGitHubProfile(windowContent) {
     windowContent.innerHTML = `
             <div class="github-profile">
                 <div class="gh-profiles">
@@ -775,7 +868,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Telegram ---
 
-  function renderTelegram() {
+  function renderTelegram(windowContent) {
     windowContent.innerHTML = `
             <div class="telegram-window">
                 <div class="telegram-header">Telegram</div>
