@@ -91,10 +91,10 @@ document.addEventListener("DOMContentLoaded", () => {
     {
       id: "neon",
       label: "Neon",
-      accent: "#00DDEB",
+      accent: "#0038ff",
       purple: "#BB86FC",
       green: "#03DAC6",
-      swatch: "#00DDEB",
+      swatch: "#0038ff",
     },
     {
       id: "rose",
@@ -170,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const theme = THEME_PRESETS.find((t) => t.id === themeId);
     if (!theme) return;
     const root = document.documentElement;
-    root.style.setProperty("--neon-blue", theme.accent);
+    root.style.setProperty("--electric-blue", theme.accent);
     root.style.setProperty("--neon-purple", theme.purple);
     root.style.setProperty("--neon-green", theme.green);
   }
@@ -588,7 +588,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(() => renderFolderContent(contentEl, "projects", index))
         .catch(() => {
           contentEl.innerHTML =
-            '<div class="folder-content"><p>Не удалось загрузить проекты.</p></div>';
+            '<div class="folder-content"><p>Failed to load projects.</p></div>';
         });
     },
     trash: (contentEl, index) => renderFolderContent(contentEl, "trash", index),
@@ -626,7 +626,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const win = openWindows.get(type);
       if (win) {
         win.contentEl.innerHTML =
-          '<div class="error-content"><p>Не удалось открыть содержимое.</p></div>';
+          '<div class="error-content"><p>Failed to open content.</p></div>';
       }
     }
   }
@@ -637,7 +637,7 @@ document.addEventListener("DOMContentLoaded", () => {
     windowContent.innerHTML = `
             <div class="text-content">
                 <h2>${escapeHtml(name)}</h2>
-                <p>Содержимое в разработке.</p>
+                <p>Coming soon.</p>
             </div>
         `;
   }
@@ -646,7 +646,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const items = folderContents[type] || [];
     if (!items.length) {
       windowContent.innerHTML =
-        '<div class="folder-content"><p>Папка пока пуста.</p></div>';
+        '<div class="folder-content"><p>This folder is empty.</p></div>';
       return;
     }
 
@@ -693,7 +693,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const items = folderContents[type] || [];
     if (!items.length) {
       windowContent.innerHTML =
-        '<div class="folder-content"><p>Папка пока пуста.</p></div>';
+        '<div class="folder-content"><p>This folder is empty.</p></div>';
       return;
     }
     if (Number.isInteger(fileIndex) && items[fileIndex]) {
