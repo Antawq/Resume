@@ -13,6 +13,7 @@
     <link rel="manifest" href="favicon/site.webmanifest">
     <link rel="canonical" href="https://antawkay.com/">
     <title>Antawkay Portfolio</title>
+    <link rel="stylesheet" href="colors_and_type.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -21,6 +22,14 @@
     <div id="brightness-overlay" aria-hidden="true"></div>
     <!-- Панель сверху -->
     <div class="menu-bar" role="banner">
+        <nav class="menu-bar__items" aria-label="App menus">
+            <span class="menu-bar__active" id="active-app">Finder</span>
+            <span>File</span>
+            <span>Edit</span>
+            <span>View</span>
+            <span>Window</span>
+            <span>Help</span>
+        </nav>
         <div class="datetime" id="datetime" role="timer" aria-live="off"></div>
     </div>
 
@@ -50,8 +59,12 @@
     <template id="window-template">
         <div class="window" role="dialog">
             <div class="window-header">
-                <div class="window-controls">
+                <div class="window-controls" role="group" aria-label="Window controls">
                     <button class="window-control close" aria-label="Close window" type="button">
+                    </button>
+                    <button class="window-control minimize" aria-label="Minimize" type="button" tabindex="-1">
+                    </button>
+                    <button class="window-control maximize" aria-label="Maximize" type="button" tabindex="-1">
                     </button>
                 </div>
                 <span class="window-title">Window</span>
@@ -75,26 +88,32 @@
         <button class="dock-item" data-type="calls" aria-label="Open Recent Calls">
             <img src="icons/phone.webp" alt="" aria-hidden="true" class="dock-icon" fetchpriority="high">
             <span class="dock-tooltip">Recent Calls</span>
+            <span class="dock-indicator" aria-hidden="true"></span>
         </button>
         <button class="dock-item" data-type="github" aria-label="Open GitHub">
             <img src="icons/github.webp" alt="" aria-hidden="true" class="dock-icon" fetchpriority="high">
             <span class="dock-tooltip">GitHub</span>
+            <span class="dock-indicator" aria-hidden="true"></span>
         </button>
         <button class="dock-item" data-type="telegram" aria-label="Open Telegram">
             <img src="icons/telegram.webp" alt="" aria-hidden="true" class="dock-icon" fetchpriority="high">
             <span class="dock-tooltip">Telegram</span>
+            <span class="dock-indicator" aria-hidden="true"></span>
         </button>
         <button class="dock-item" data-type="instagram" aria-label="Open Instagram">
             <img src="icons/instagram.webp" alt="" aria-hidden="true" class="dock-icon" fetchpriority="high">
             <span class="dock-tooltip">Instagram</span>
+            <span class="dock-indicator" aria-hidden="true"></span>
         </button>
         <button class="dock-item" data-type="notes" aria-label="Open Notes">
             <img src="icons/notepad.webp" alt="" aria-hidden="true" class="dock-icon" fetchpriority="high">
             <span class="dock-tooltip">Notes</span>
+            <span class="dock-indicator" aria-hidden="true"></span>
         </button>
         <button class="dock-item" data-type="trash" aria-label="Open Trash">
             <img src="icons/trash.webp" alt="" aria-hidden="true" class="dock-icon" fetchpriority="high">
             <span class="dock-tooltip">Trash</span>
+            <span class="dock-indicator" aria-hidden="true"></span>
         </button>
     </nav>
 
