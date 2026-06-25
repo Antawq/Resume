@@ -2,7 +2,7 @@ name: Update GitHub Data
 
 on:
   schedule:
-    - cron: '0 */6 * * *'   # каждые 6 часов
+    - cron: '0 0 * * 0'   # раз в неделю (воскресенье)
   workflow_dispatch:          # ручной запуск
 
 permissions:
