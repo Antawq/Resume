@@ -13,6 +13,8 @@ import { renderSettings } from "./settings.js";
 
 let projectsPromise = null;
 
+// --- Projects loader ---
+
 function loadProjects() {
   return (projectsPromise ??= fetch("projects/projects.json")
     .then((r) => {
@@ -28,6 +30,8 @@ function loadProjects() {
       return folderContents.projects;
     }));
 }
+
+// --- Render strategies ---
 
 const WINDOW_RENDER_STRATEGIES = {
   photos: (contentEl, index) => renderFolderContent(contentEl, "photos", index),
@@ -50,6 +54,8 @@ const WINDOW_RENDER_STRATEGIES = {
   instagram: (contentEl) => renderPlaceholder(contentEl, "Instagram"),
   settings: (contentEl) => renderSettings(contentEl),
 };
+
+// --- Open ---
 
 export function openWindow(type, fileIndex) {
   if (!type) return;

@@ -107,7 +107,7 @@ jobs:
               result[username] = { user, readme: await inlineImages(readme) };
             }
 
-            fs.writeFileSync('github-data.json', JSON.stringify(result, null, 2));
+            fs.writeFileSync('public/github-data.json', JSON.stringify(result, null, 2));
             console.log('github-data.json updated.');
           }
 
@@ -118,6 +118,6 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add github-data.json
+          git add public/github-data.json
           git diff --staged --quiet || git commit -m "chore: update github-data.json [skip ci]"
           git push

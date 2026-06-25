@@ -33,6 +33,8 @@ window.addEventListener("beforeunload", () => {
   teardownDateTime();
 });
 
+// --- Boot ---
+
 function init() {
   setupStartupOverlay();
   applyBrightness(currentSettings.brightness);

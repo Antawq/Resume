@@ -1,6 +1,8 @@
 import { CONSTANTS } from "./constants.js";
 import { openWindow } from "./open-window.js";
 
+// --- Desktop icons ---
+
 export function setupFileDragging() {
   document.querySelectorAll(".file").forEach((file) => {
     let isDragging = false;
@@ -77,6 +79,8 @@ export function setupFileDragging() {
     });
   });
 }
+
+// --- Dock ---
 
 export function setupDockItems() {
   document.querySelectorAll(".dock-item").forEach((item) => {

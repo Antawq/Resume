@@ -1,10 +1,14 @@
+import photo1 from "../photos/photo1.png";
+import photo2 from "../photos/photo2.png";
+import photo3 from "../photos/photo3.png";
+
 export const openWindows = new Map();
 
 export const folderContents = {
   photos: [
-    { src: "photos/photo1.png", name: "Photo 1" },
-    { src: "photos/photo2.png", name: "Photo 2" },
-    { src: "photos/photo3.png", name: "Photo 3" },
+    { src: photo1, name: "Photo 1" },
+    { src: photo2, name: "Photo 2" },
+    { src: photo3, name: "Photo 3" },
   ],
   projects: [],
   trash: [],
@@ -17,13 +21,13 @@ export const telegramState = {
     {
       id: 1,
       name: "Alice",
-      avatar: "photos/photo1.jpg",
+      avatar: photo1,
       messages: [{ type: "received", text: "Hi there!" }],
     },
     {
       id: 2,
       name: "Bob",
-      avatar: "photos/photo2.jpg",
+      avatar: photo2,
       messages: [{ type: "received", text: "Hello!" }],
     },
   ],

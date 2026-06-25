@@ -1,6 +1,8 @@
 import { CONSTANTS, THEME_PRESETS, SETTINGS_KEY } from "./constants.js";
 import { escapeHtml, isLocalStorageAvailable } from "./utils.js";
 
+// --- Persistence ---
+
 export function loadSettings() {
   if (!isLocalStorageAvailable) return { brightness: 0, theme: "neon" };
   try {
@@ -16,6 +18,8 @@ export function saveSettings(settings) {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch (e) {}
 }
+
+// --- Apply ---
 
 export function applyBrightness(value) {
   const overlay = document.getElementById("brightness-overlay");
@@ -33,6 +37,8 @@ export function applyTheme(themeId) {
 }
 
 export const currentSettings = loadSettings();
+
+// --- Settings window ---
 
 export function renderSettings(windowContent) {
   windowContent.innerHTML = `

@@ -6,6 +6,8 @@ const activeAppEl = document.getElementById("active-app");
 
 let topZ = 1000;
 
+// --- Focus & status ---
+
 export function raiseWindow(win) {
   win.el.style.zIndex = ++topZ;
   updateActiveAppLabel();
@@ -30,6 +32,8 @@ function setDockIndicator(type, isRunning) {
   const dot = item.querySelector(".dock-indicator");
   if (dot) dot.classList.toggle("is-running", !!isRunning);
 }
+
+// --- Dragging ---
 
 function makeDraggable(win) {
   const header = win.el.querySelector(".window-header");
@@ -70,6 +74,8 @@ function makeDraggable(win) {
   header.addEventListener("pointerup", endDrag);
   header.addEventListener("pointercancel", endDrag);
 }
+
+// --- Resizing ---
 
 function makeResizable(win) {
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
@@ -139,6 +145,8 @@ function makeResizable(win) {
     handle.addEventListener("pointercancel", endResize);
   });
 }
+
+// --- Lifecycle ---
 
 export function closeWindow(win) {
   if (win.el.classList.contains("is-closing")) return;

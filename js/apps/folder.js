@@ -2,6 +2,8 @@ import { folderContents, currentIndex } from "../state.js";
 import { escapeHtml } from "../utils.js";
 import { openWindow } from "../open-window.js";
 
+// --- Folder list ---
+
 function renderFolder(windowContent, type) {
   const items = folderContents[type] || [];
   if (!items.length) {
@@ -62,6 +64,8 @@ export function renderFolderContent(windowContent, type, fileIndex) {
     renderFolder(windowContent, type);
   }
 }
+
+// --- Gallery ---
 
 function renderGallery(windowContent, type, startIndex) {
   startIndex = startIndex || 0;

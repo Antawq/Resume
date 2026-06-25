@@ -2,6 +2,8 @@ import { GITHUB_PROFILES } from "../constants.js";
 
 let githubDataPromise = null;
 
+// --- Data ---
+
 function fetchGitHubData(username) {
   githubDataPromise ??= fetch("github-data.json").then((r) => {
     if (!r.ok) throw new Error(r.status);
@@ -13,6 +15,8 @@ function fetchGitHubData(username) {
     return profile;
   });
 }
+
+// --- Render ---
 
 function renderGitHubProfileSection({ prefix, username }) {
   return `
@@ -30,6 +34,8 @@ function renderGitHubProfileSection({ prefix, username }) {
             </section>
         `;
 }
+
+// --- Hydrate ---
 
 function hydrateGitHubProfile({ username, prefix }) {
   const avatar    = document.getElementById(prefix + "-avatar");

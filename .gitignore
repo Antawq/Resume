@@ -21,4 +21,8 @@ trash
 wallpapers
 *.asc
 private.asc
+
+# Build
+node_modules/
+dist/
 public.asc

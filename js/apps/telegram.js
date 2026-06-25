@@ -1,5 +1,6 @@
 import { telegramState } from "../state.js";
 import { escapeHtml } from "../utils.js";
+import photo1 from "../../photos/photo1.png";
 
 export function renderTelegram(windowContent) {
   windowContent.innerHTML = `
@@ -20,7 +21,7 @@ export function renderTelegram(windowContent) {
     telegramState.chats.push({
       id: Date.now(),
       name: "New chat",
-      avatar: "photos/photo1.jpg",
+      avatar: photo1,
       messages: [],
     });
   }
@@ -33,6 +34,8 @@ export function renderTelegram(windowContent) {
   const sendBtn = document.getElementById("telegram-send");
 
   const findChat = (id) => telegramState.chats.find((c) => c.id === id);
+
+  // --- Chat list ---
 
   const renderChatList = () => {
     chatList.innerHTML = telegramState.chats
@@ -47,6 +50,8 @@ export function renderTelegram(windowContent) {
       )
       .join("");
   };
+
+  // --- Messages ---
 
   const renderMessages = () => {
     const chat = findChat(telegramState.activeChatId);
@@ -77,6 +82,8 @@ export function renderTelegram(windowContent) {
     e.preventDefault();
     item.click();
   });
+
+  // --- Send ---
 
   const sendMessage = () => {
     const text = input.value.trim();
