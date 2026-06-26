@@ -1,6 +1,6 @@
-import photo1 from "../photos/photo1.png";
-import photo2 from "../photos/photo2.png";
-import photo3 from "../photos/photo3.png";
+import photo1 from "../photos/photo1.webp";
+import photo2 from "../photos/photo2.webp";
+import photo3 from "../photos/photo3.webp";
 
 export const openWindows = new Map();
 

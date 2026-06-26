@@ -1,6 +1,6 @@
 import { telegramState } from "../state.js";
 import { escapeHtml } from "../utils.js";
-import photo1 from "../../photos/photo1.png";
+import photo1 from "../../photos/photo1.webp";
 
 export function renderTelegram(windowContent) {
   windowContent.innerHTML = `
