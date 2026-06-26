@@ -686,15 +686,26 @@ button:focus-visible,
     border-radius: 10px;
 }
 
-.dock-item:hover,
-.dock-item:focus {
+.dock-item:focus-visible {
     transform: scale(1.4) translateY(-8px);
 }
 
-.dock-item:hover .dock-tooltip,
-.dock-item:focus .dock-tooltip {
+.dock-item:focus-visible .dock-tooltip {
     opacity: 1;
     transform: translateX(-50%) translateY(-10px);
+}
+
+/* Hover only on real pointers — touch devices keep sticky :hover that turns
+   the first tap into a hover and requires a second tap to open the app. */
+@media (hover: hover) {
+    .dock-item:hover {
+        transform: scale(1.4) translateY(-8px);
+    }
+
+    .dock-item:hover .dock-tooltip {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-10px);
+    }
 }
 
 .dock-tooltip {

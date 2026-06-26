@@ -52,7 +52,7 @@ export function setupFileDragging() {
         Math.max(minY, Math.min(e.clientY - offsetY, maxY)) + "px";
     });
 
-    file.addEventListener("pointerup", () => {
+    const endInteraction = () => {
       if (!hasMoved && !opening) {
         opening = true;
         openWindow(file.dataset.type);
@@ -63,13 +63,13 @@ export function setupFileDragging() {
       if (isDragging) file.classList.remove("dragging");
       isDragging = false;
       hasMoved = false;
-    });
+    };
 
-    file.addEventListener("pointercancel", () => {
-      if (isDragging) file.classList.remove("dragging");
-      isDragging = false;
-      hasMoved = false;
-    });
+    file.addEventListener("pointerup", endInteraction);
+    // On touch (notably iOS Safari) a tap after setPointerCapture can end with
+    // pointercancel instead of pointerup, so open here too. The `opening`
+    // debounce dedupes if both fire.
+    file.addEventListener("pointercancel", endInteraction);
 
     file.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
