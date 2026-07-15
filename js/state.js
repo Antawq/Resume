@@ -1,6 +1,7 @@
 import photo1 from "../photos/photo1.webp";
 import photo2 from "../photos/photo2.webp";
 import photo3 from "../photos/photo3.webp";
+import anitopCover from "../photos/anitop.webp";
 
 export const openWindows = new Map();
 
@@ -10,7 +11,13 @@ export const folderContents = {
     { src: photo2, name: "Photo 2" },
     { src: photo3, name: "Photo 3" },
   ],
-  projects: [],
+  projects: [
+    {
+      src: anitopCover,
+      name: "AniTop",
+      url: "https://anitop.antawkay.com",
+    },
+  ],
   trash: [],
 };
 
